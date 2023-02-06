@@ -26,7 +26,7 @@ qetrader交易接口可以通过pip直接安装在用户本地，实现在任意
 
     宽易提供了小工具InstallRedis.exe方便安装配套的redis-server服务。下载链接：
 
-    [installRedis.exe]: https://quantease.cn/downloads/qeserver/installRedis.exe 
+    [installRedis.exe]: https://quantease.cn/downloads/qeserver/installRedis.exe
 
     下载后运行该工具即可
 
@@ -207,6 +207,14 @@ qetrader交易接口可以通过pip直接安装在用户本地，实现在任意
     ```
     from qetrader import setWebConfig
     setWebConfig()
+    ```
+
+    
+
+    在浏览器测试一下输入网址http://127.0.0.1:5814, 出现如下文字代表启动成功
+
+    ```
+    qetrader网页展示服务已经成功启动
     ```
 
     
