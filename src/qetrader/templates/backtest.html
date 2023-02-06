@@ -1,0 +1,716 @@
+{% extends "base.html" %}
+{% block title %}{% endblock %}
+{% block body %}
+
+    {{ super() }}
+    {% block switch %}
+    {% endblock %}
+
+	<script type="text/javascript" src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+	<link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+	<script type="text/javascript" src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<!--<script type="text/javascript" src="https://canvasjs.com/assets/script/canvasjs.stock.min.js"></script>-->
+	<script type="text/javascript" src="canvas.js"></script>
+	<script type="text/javascript" src="jquery.pagination.js"></script>	
+	<style type="text/css">
+
+
+	  .tablecontext .headtable ul li{
+		display: inline-block;
+		width: 16.33%;
+		height: 36px;
+		line-height: 36px;
+		border-radius: 5px;
+		background-color: #333;
+		text-align: center;
+		color: #fff;
+	  }
+	  .tablecontext .headtable ul li.current{
+		background-color: green;
+	  }
+	  .tablecontext .bodytable{
+		border: 1px solid #ccc;
+		border-radius: 5px;
+	  }
+	  .tablecontext .bodytable ul li{
+		display: none;
+	  }
+	  .tablecontext .bodytable ul li.current{
+		display: block;
+	  }
+	  .tablecontext .cd div div{
+		display: none;
+	  }
+	  .tablecontext .cd div.current div{
+		display: block;
+	  }
+      #chartdata {
+        display: none;
+      }
+	nav {
+		display: flex;
+		justify-content: center;
+	}
+	.pagination {
+		display: inline-block;
+		padding: 0;
+		margin: 0;
+    }
+	.pagination li {display: inline;}
+	.pagination a {
+		color: black;
+		float: left;
+		padding: 8px 16px;
+		text-decoration: none;
+	}
+	.pagination span.active {
+		background-color:  #4CAF50;
+		color:  white;
+ 		float: left;
+		padding: 8px 16px;
+		text-decoration: none;
+    }		
+	   
+
+
+  </style>
+<div class="container">
+	<div class="row clearfix">
+		<div class="col-md-12 column">
+			<div class="row clearfix">
+				<div class="col-md-4 column">
+				   <h1> SUMMARY </h1><br><br>
+				     <b><span> 用户名:</span><span id='username'> {{user}} </span></b><br>
+				   {% for key, value in indicators.items() %}
+	                 <b><span>{{ key }}:</span><span>  {{ value }} </span> </b><br>    
+                   {% endfor %}
+				</div>
+				<div class="col-md-8 column">
+				  <div class="tablecontext">
+					<div class="headtable" id="charthead">
+					  <ul>
+						<li class="current">开平仓</li>
+						<li>资金图</li>
+						<li>盈亏图</li>
+
+					  </ul>
+					</div>	
+					<div class="btn-group" id="instName-grp" >
+						<button class="btn btn-default" id="instName-btn" data-toggle="dropdown">none</button> <button data-toggle="dropdown" class="btn btn-default dropdown-toggle" id="instName-btn-sel"><span class="caret" id="namecaret"></span></button>
+						<ul class="dropdown-menu pull-right" id="instname-list">
+							
+						</ul>
+					</div>
+
+					<div class="bodytable" id="chartbody">
+					  <ul>
+						<li class=" chartcontent current" id="openclose">
+    						<table class="table">
+								<tr >
+									<div id="chartContainer1" style="height: 500px; width: 100%;"></div>
+								</tr>
+							</table>
+						</li>
+
+						<li class=" chartcontent" id="capital">
+							<table class="table" >
+								<tr>
+									<img src="data:image/png;base64, {{ plot_cap }}">
+								</tr>
+							</table>
+						</li>
+						<li class=" chartcontent" id="return">
+							<table class="table">
+								<tr>
+									<img src="data:image/png;base64, {{ plot_pnl }}">
+
+								</tr>
+							</table>	
+						</li>		
+					  </ul>
+					</div>
+				</div>
+				</div>	
+			</div>
+		</div>
+	</div>
+	<div class="row clearfix" style="margin-top:1%">
+		<div class="col-md-12 column">
+		  <div class="tablecontext">
+            <div class="headtable" id="tablehead">
+              <ul>
+                <li class="current">成交</li>
+                <li>委托</li>
+                <li>统计</li>
+              </ul>
+            </div>
+            <div class="bodytable" id="tablebody">
+              <ul>
+                <li class="mycontent current" id="trade">
+					<table class="table">
+						<tr >
+                           {{trades_item|safe}}
+						</tr>
+					</table>
+				</li>
+
+                <li class="mycontent" id="order">
+					<table class="table" >
+						<tr>
+                           {{orders_item|safe}}
+
+						</tr>
+					</table>
+				</li>
+				<li  class="mycontent" id="stat">
+					<table class="table">
+						<tr>
+                           {{stat_item|safe}}
+
+						</tr>
+					</table>	
+				</li>		
+              </ul>
+            </div>
+			<div class = "cd">
+				<div class="tablepage current" >
+					<div class="pagination" id ="tradepage" ></div>
+				</div>
+				<div class="tablepage">
+					<div class="pagination" id ="orderpage"> </div>
+				</div>
+				<div class="tablepage" >
+					<div class="pagination" id ="statpage"> </div>
+				</div>
+			</div>
+         </div>
+      </div>
+
+	</div>
+	<data id="chartdata" type="hidden" > <!-- encoding="base64" compression="zlib">-->
+       {{plot_data}}
+    </data>
+	
+</div>
+</div>
+<script src="https://canvasjs.com/assets/script/jquery-ui.1.11.2.min.js"></script>
+<script type="text/javascript">
+//'use strict'
+  var testData;
+  var stgdetail = '{{stgdetail|tojson}}';
+  var curinst;
+  var stgdetails = eval('(' + stgdetail + ')');
+  var dataPoints = [], dataPoints1 = [], dataPoints2 = [], dataPoints3 = [];
+  var datapoint_openlong =[];
+  var datapoint_closelong = [];
+  var datapoint_openshort = [];
+  var datapoint_closeshort = [];
+  var chart_maximum = 0, chart_minimum = 0;
+  var showDropdown = false;
+  function addSymbols(e){
+    var suffixes = ["", "K", "M", "B"];
+    var order = Math.max(Math.floor(Math.log(e.value) / Math.log(1000)), 0);
+    if(order > suffixes.length - 1)
+      order = suffixes.length - 1;
+    var suffix = suffixes[order];
+    return CanvasJS.formatNumber(e.value / Math.pow(1000, order)) + suffix;
+  }
+  var data = []; var dataSeries = { type: "spline" };
+  var options1 =  {
+    theme: "light2",
+    //exportEnabled: true,
+    title:{
+      text:"{{stratname}} 开平仓"
+    },
+    charts: [{
+      toolTip: {
+        shared: true
+      },
+      axisX: {
+        lineThickness: 5,
+        tickLength: 0,
+        labelFormatter: function(e) {
+          return "";
+        }
+      },
+      axisY: {
+		includeZero: false,
+        prefix: "RMB",
+        tickLength: 0
+      },
+      legend: {
+        verticalAlign: "top"
+      },
+      data: [{
+        showInLegend: true,
+        name: "价格",
+        yValueFormatString: "#,###.##",
+        type: "candlestick",
+        dataPoints : dataPoints1
+      },{
+                type: "scatter",
+                legendText: "开多",
+                showInLegend: true,
+				name : "Open Long",
+                markerSize: 8,
+                markerColor: 'orange',
+                markerType: "circle",  //"circle", "square", "cross", "none"
+                dataPoints: datapoint_openlong},
+
+                {
+                    type: "scatter",
+                    markerSize: 8,
+				    name : "Close Long",
+                    showInLegend: true,
+                    legendText: "平多",
+                    markerColor: 'orange',
+                    markerType: "cross",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_closelong
+                },
+                {
+                    type: "scatter",
+                    legendText: "开空",
+				    name : "Open Short",
+                    showInLegend: true,
+                    markerSize:8,
+                    markerColor: 'blue',
+
+
+                    markerType: "circle",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_openshort
+                },
+                {
+                    type: "scatter",
+                    markerSize: 8,
+				    name : "Close Short",
+                    showInLegend: true,
+                    legendText: "平空",
+                    markerColor: 'blue',
+                    markerType: "cross",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_closeshort
+                }]
+    },{
+      height: 100,
+      toolTip: {
+        shared: true
+      },
+      axisY: {
+        prefix: " RMB",
+        tickLength: 0,
+        labelFormatter: addSymbols
+      },
+      legend: {
+        verticalAlign: "top"
+      },
+      data: [{
+        showInLegend: true,
+        name: "Volume",
+        yValueFormatString: "#,###.##",
+        dataPoints : dataPoints2
+      }]
+    }],
+    navigator: {
+      data: [{
+        dataPoints: dataPoints3
+      }],
+      slider: {
+        minimum: chart_minimum,
+        maximum: chart_maximum
+      }
+    }
+  };
+  var options2 = {
+    theme: "light2", //"light1", "dark1", "dark2"
+    title:{
+      text:"{{stratname}} 开平仓"
+    },
+    charts: [{
+      axisX: {
+        crosshair: {
+          enabled: true,
+          snapToDataPoint: true
+        }
+      },
+      axisY: {
+        prefix: "RMB",
+		includeZero: false,
+        crosshair: {
+          enabled: true,
+          snapToDataPoint: true,
+          valueFormatString: "#,###.##"
+        }
+      },
+      toolTip: {
+        shared: true
+      },
+      data: [{
+        type: "spline",
+        name: "Price",
+        yValueFormatString: "#,###.##",
+        dataPoints : dataPoints
+      },{
+                type: "scatter",
+                legendText: "开多",
+				name : "Open Long",
+                markerSize:8,
+                showInLegend: true,
+                markerColor: 'orange',
+                markerType: "circle",  //"circle", "square", "cross", "none"
+                dataPoints: datapoint_openlong},
+
+                {
+                    type: "scatter",
+                    markerSize: 8,
+					name: "Close Long",
+                    showInLegend: true,
+                    legendText: "平多",
+                    markerColor: 'orange',
+                    markerType: "cross",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_closelong
+                },
+                {
+                    type: "scatter",
+                    legendText: "开空",
+					name: "Open Short",
+                    showInLegend: true,
+                    markerSize:8,
+                    markerColor: 'blue',
+
+
+                    markerType: "circle",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_openshort
+                },
+                {
+                    type: "scatter",
+                    markerSize: 8,
+                    showInLegend: true,
+                    legendText: "平空",
+					name : "Close Short",
+                    markerColor: 'blue',
+                    markerType: "cross",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_closeshort
+                }]
+    }],
+    navigator: {
+       data: [{
+        dataPoints: dataPoints
+      }],
+     slider: {
+        minimum: chart_minimum,
+        maximum: chart_maximum
+      }
+    }
+  };
+  var stockChart;
+  window.onload = function() {
+       $("#tablehead").on("click","li",function(){
+        $(this).addClass("current").siblings().removeClass("current");
+        var liIndex = $(this).index();//点击li时，保存当前li的下标index，
+        $(".mycontent").eq(liIndex).addClass("current").siblings(".mycontent").removeClass("current");
+        //内容区class为content且下标等于当前点击的li的下标，移除样式类hide。
+        //也就是content的下标等于当前点击的li的下标，就让它显示出来   
+         $(".tablepage").eq(liIndex).addClass("current").siblings(".tablepage").removeClass("current");
+       
+      }); 
+       $("#charthead").on("click","li",function(){
+        $(this).addClass("current").siblings().removeClass("current");
+        var liIndex = $(this).index();//点击li时，保存当前li的下标index，
+		if (liIndex == 0 && showDropdown)
+		{
+		    $('#instName-grp').show();
+		}
+		else{
+		    $('#instName-grp').hide();
+		}
+        $(".chartcontent").eq(liIndex).addClass("current").siblings(".chartcontent").removeClass("current");
+		$(".tablepage").eq(liIndex).addClass("current").siblings(".tablepage").removeClass("current");
+        //内容区class为content且下标等于当前点击的li的下标，移除样式类hide。
+        //也就是content的下标等于当前点击的li的下标，就让它显示出来   
+      }); 
+      setTablePages();  
+	  testData = JSON.parse(document.getElementById("chartdata").innerText);
+	  $('#chartdata').hide();
+	  //stgdetails.insts.push('test');
+	  if (stgdetails.insts.length <= 1)
+	  {
+	     $('#instName-grp').hide();
+	  }
+	  else 
+	  {
+	    showDropdown = true;
+		for (let i = 0, len = stgdetails.insts.length; i < len; i++)
+		{
+		   console.log(stgdetails.insts[i])
+		   $('#instname-list').append("<li><a href=\"#\" value = \""+stgdetails.insts[i]+"\" onclick=\"showsName($(this).text());\">" + stgdetails.insts[i] + "</a></li>");
+		}
+		inst1 = stgdetails.insts[0]
+		$('#instName-btn').text(inst1);
+	    $('#instName').val(inst1);
+        $('#instName-grp').show();
+		curinst = inst1;
+		console.log(stgdetails.insts);
+	  }
+	  if (stgdetails.chartmode=='bar')
+	  {
+	    stockChart = new CanvasJS.StockChart("chartContainer1",options1);
+	  }
+	  else
+	  {
+	    stockChart = new CanvasJS.StockChart("chartContainer1",options2);
+	  }
+      onDataUpdate(testData);
+	  stockChart.render();
+  }
+
+   function setTablePages()
+  {
+      var on = stgdetails.ordernum;
+      var tn = stgdetails.tradenum;
+      var sn = stgdetails.statnum;
+      var onum = Math.ceil(on / 100);
+      var tnum = Math.ceil(tn /100);
+      var snum = Math.ceil(sn /100);
+      var user = $('#username').text();
+      //console.log(on,tn,sn,onum,tnum,snum);
+      $("#tradepage").pagination({
+                coping: false,
+                isHide: false,
+                current: 1,
+                activeCls: 'active',
+                totalData: tn,
+                pageCount: tnum,
+                showData: 100,
+                prevContent: '<<',
+                nextContent: '>>',
+                callback: function (api) {
+                    console.log(api.getCurrent());
+					$.ajax({ //发起ajax请求
+							url: '/backtest_pagesel',
+							type: "POST",
+							dataType: "JSON",
+							data: {'table':"trades",'user':user,'page':api.getCurrent()},
+							success: function (data) {
+								if(data['result'])
+								{
+                                    $('#trade .table').remove();
+                                    $('#trade').append(data['data']);
+								}
+							}
+					  });                   
+                },
+                keepShowPN: true,
+                count: 3,
+            });
+		 $("#orderpage").pagination({
+					coping: false,
+					isHide: false,
+					current: 1,
+					activeCls: 'active',
+					totalData: on,
+					pageCount: onum,
+					showData: 100,
+					prevContent: '<<',
+					nextContent: '>>',
+					callback: function (api) {
+						console.log(api.getCurrent());
+					$.ajax({ //发起ajax请求
+							url: '/backtest_pagesel',
+							type: "POST",
+							dataType: "JSON",
+							data: {'table':"orders",'user':user,'page':api.getCurrent()},
+							success: function (data) {
+								if(data['result'])
+								{
+                                    $('#order .table').remove();
+                                    $('#order').append(data['data']);
+								}
+							}
+					  });    						
+					},
+					keepShowPN: true,
+					count: 3,
+				});
+		 $("#statpage").pagination({
+					coping: false,
+					isHide: false,
+					current: 1,
+					activeCls: 'active',
+					totalData: sn,
+					pageCount: snum,
+					showData: 100,
+					prevContent: '<<',
+					nextContent: '>>',
+					callback: function (api) {
+						console.log(api.getCurrent());
+					    $.ajax({ //发起ajax请求
+							url: '/backtest_pagesel',
+							type: "POST",
+							dataType: "JSON",
+							data: {'table':"stat",'user':user,'page':api.getCurrent()},
+							success: function (data) {
+								if(data['result'])
+								{
+                                    $('#stat .table').remove();
+                                    $('#stat').append(data['data']);
+								}
+							}
+					    });    						
+					},
+					keepShowPN: true,
+					count: 3,
+				});
+      
+
+  }
+  function onDataUpdate(testData)
+  {
+      dataPoints = [];
+      dataPoints1 = [];
+      dataPoints2 = [];
+      dataPoints3 = [];
+	  datapoint_openlong = [];
+	  datapoint_openshort = [];
+	  datapoint_closelong = [];
+	  datapoint_closeshort = [];
+	  
+  	  if (stgdetails.chartmode == 'bar')
+	  {
+	    if (JSON.stringify(testData)!='{}')
+    	{
+			for(var i = 0; i < testData.index.length; i++){
+			  dataPoints1.push({label: (testData.index[i]), y: [Number(testData.open[i]), Number(testData.high[i]), Number(testData.low[i]), Number(testData.close[i])], color: testData.open[i] < testData.close[i] ? "green" : "red"});;
+			  dataPoints2.push({label: (testData.index[i]), y: Number(testData.volume[i]), color: testData.open[i] < testData.close[i] ? "green" : "red"});
+			  dataPoints3.push({label: (testData.index[i]), y: Number(testData.close[i])});
+			  
+			}
+		}
+		stockChart.options.charts[0].data[0].dataPoints = dataPoints1;
+		stockChart.options.charts[1].data[0].dataPoints = dataPoints2;
+		stockChart.options.navigator.data[0].dataPoints = dataPoints3;
+	  }
+	  else
+	  {
+	    if (JSON.stringify(testData)!='{}')
+    	{
+			for(var i = 0; i < testData.index.length; i++){
+			  dataPoints.push({label: (testData.index[i]), y: Number(testData.current[i])});
+			}
+		}
+		stockChart.options.charts[0].data[0].dataPoints = dataPoints;
+		stockChart.options.navigator.data[0].dataPoints = dataPoints;
+		
+	    
+	  }
+	    if (JSON.stringify(testData)!='{}')
+    	{
+			  for (var i = 0; i < testData.index.length; i++)
+			  {
+				  if('openlong' in testData) {
+					var p = Number(testData.openlong[i]);
+					if (p == 0) p = Number.NaN;
+					datapoint_openlong.push({label: (testData.index[i]), y: Number(p)});
+					stockChart.options.charts[0].data[1].dataPoints = datapoint_openlong;
+				  }
+				  else{
+					  datapoint_openlong=[]
+					  stockChart.options.charts[0].data[1].dataPoints = datapoint_openlong;
+				  }
+
+				  if('openshort' in testData) {
+					var p = Number(testData.openshort[i]);
+					if (p == 0) p = Number.NaN;
+					datapoint_openshort.push({label: (testData.index[i]), y: Number(p)});
+					stockChart.options.charts[0].data[3].dataPoints = datapoint_openshort;
+				  }
+				  else{
+					  datapoint_openshort=[]
+					  stockChart.options.charts[0].data[3].dataPoints = datapoint_openshort;
+				  }
+				  if('closelong' in testData) {
+					var p = Number(testData.closelong[i]);
+					if (p == 0) p = Number.NaN;
+					datapoint_closelong.push({label: (testData.index[i]), y: Number(p)});
+					stockChart.options.charts[0].data[2].dataPoints = datapoint_closelong;
+				  }
+				  else{
+					  datapoint_closelong=[]
+					  stockChart.options.charts[0].data[2].dataPoints = datapoint_closelong;
+				  }
+				  if('closeshort' in testData) {
+					var p = Number(testData.closeshort[i]);
+					if (p == 0) p = Number.NaN;
+					datapoint_closeshort.push({label: (testData.index[i]), y: Number(p)});
+					stockChart.options.charts[0].data[4].dataPoints = datapoint_closeshort;
+				  }
+				  else{
+					  datapoint_closeshort=[]
+					  stockChart.options.charts[0].data[4].dataPoints = datapoint_closeshort;
+				  }
+			  
+			  }
+      //stockChart.options.navigator.slider.minimum = 0;
+	  var lastindex = testData.index.length - 1;
+	  stockChart.options.navigator.slider.maximum = lastindex;
+	  if (lastindex > 10000) stockChart.options.navigator.slider.minimum = lastindex - 10000;
+	  else stockChart.options.navigator.slider.minimum = 0;
+	  }
+	  
+  }
+  function pageclick(item)
+  {
+     console.log(item.innerHTML);
+  }
+  function showsName(thisText) {
+	   if (thisText != curinst)
+	   {
+          console.log(thisText);
+	      curinst = thisText;
+		  $('#instName-btn').text(curinst);
+	      $('#instName').val(curinst);
+   		  var user = $('#username').text();
+		  $.ajax({ //发起ajax请求
+                url: '/backtestinst',
+                type: "POST",
+                dataType: "JSON",
+                data: {'instid':thisText,'user':user},
+                success: function (data) {
+                    if(data['result'])
+					{
+					      testData = data['data'];
+						
+                        //console.log(data['data'])
+					}
+					else
+					{
+					    if('open' in testData)
+						{
+						   testData.index = [];
+						   testData.open = [];
+						   testData.close =[];
+						   testData.high =[];
+						   testData.low =[];
+						   testData.volume = [];
+						   
+						}
+						else
+						{
+						    testData.index = [];
+							testData.current = [];
+							
+						}
+   					   if('openlong' in testData)  testData.openlong = [];
+   					   if('closelong' in testData)  testData.closelong = [];
+   					   if('openshort' in testData)  testData.openshort = [];
+   					   if('closeshort' in testData)  testData.closeshort = [];
+
+						//console.log(testData)
+					}
+				    onDataUpdate(testData);
+						  
+					stockChart.render();
+                }
+          });
+	   }
+  }
+</script>
+{% endblock %}

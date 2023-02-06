@@ -1,0 +1,1032 @@
+{% extends "base.html" %}
+{% block title %}{% endblock %}
+{% block body %}
+
+    {{ super() }}
+    {% block switch %}
+    {% endblock %}
+<script type="text/javascript" src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
+<link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+<script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<!--<script type="text/javascript" src="https://canvasjs.com/assets/script/canvasjs.stock.min.js"></script>-->
+<script type="text/javascript" src="canvas.js"></script>
+<script type="text/javascript" src="jquery.timers.js"></script>
+
+<style type="text/css">
+  *{
+    padding: 0;
+    margin: 0;
+  }
+  .chartholder{
+  	border: 1px solid #ccc;
+	border-radius: 5px;
+  
+  }
+  
+  #tablecontext .headtable ul li{
+    display: inline-block;
+    width: 16.33%;
+    height: 36px;
+    line-height: 36px;
+    border-radius: 5px;
+    background-color: #333;
+    text-align: center;
+	word-wrap:break-word;  
+    word-break:break-all;
+    color: #fff;
+  }
+  #tablecontext .headtable ul li.current{
+    background-color: green;
+  }
+  #tablecontext .bodytable{
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  #tablecontext .bodytable ul li{
+    display: none;
+  }
+  #tablecontext .bodytable ul li.current{
+    display: block;
+  }
+
+  #tablecontext .cd div{
+    display: none;
+  }
+  #tablecontext .cd div.current{
+    display: block;
+  }
+  .tablepage ul li a.current {
+	background-color:  #4CAF50;
+	color:  white;
+  }
+  .tablepage ul li a{
+	  display: inline-block;
+	  color: black;
+   }
+</style>
+<script type="text/javascript">
+  var dataPoints1 = []; var dataPoints2 = []; var dataPoints3 = []; 
+  var datapoint_openlong1 =[];
+  var datapoint_closelong1 = [];
+  var datapoint_openshort1 = [];
+  var datapoint_closeshort1 = [];
+  var dataPoints4 = [];
+  var dataPoints5 = [];
+  var datapoint_openlong2 =[];
+  var datapoint_closelong2 = [];
+  var datapoint_openshort2 = [];
+  var datapoint_closeshort2 = [];
+  var curstg = '{{curstg|tojson}}';
+  curstg = eval('(' + curstg + ')');
+  var curinst  = '{{curinst|tojson}}';
+  curinst = eval('(' + curinst + ')');
+  var curstginst = curstg+'_'+curinst;
+  var stgdetail = '{{stgdetail|tojson}}';
+  var user='{{ user|tojson }}'
+  var userid = eval('(' + user + ')');
+  var curpos = '{{ curpos|tojson }}';
+  curpos =  eval('(' + curpos + ')');
+  var mode='{{ mode|tojson }}'
+  var modeid = eval('(' + mode + ')')
+  var  tradingDay='{{ tradingDay|tojson }}'
+  var  tradingDayid = eval('(' + tradingDay + ')')
+  var  token='{{ token|tojson }}'
+  var  tokenid = eval('(' + token + ')')
+  var  freq='{{ freq|tojson }}'
+  var  freqid = eval('(' + freq + ')')
+  var  stgdetails = eval('(' + stgdetail + ')');
+  var  allCaseMessage = '{{ data|tojson }}';
+  var  testData = eval('(' + allCaseMessage + ')')
+  var  chartid = 1;
+  var  timerRunning = false;
+  var  pagesett = '{{ pagesett|tojson }}';
+  pagesett = eval('(' + pagesett + ')');
+  var shownum = pagesett['shownum'];
+  var tradenum = pagesett['tradenum'];
+  var ordernum = pagesett['ordernum'];
+  var lognum = pagesett['lognum'];
+  var tradesel = 1;
+  var ordersel = 1;
+  var logsel = 1;
+  var tabindex  = 0;
+  var tablist =['trades', 'orders', 'position', 'account', 'log'];
+  var minnavi_new = 0
+  var minnavi = 0
+  var minnavi_change = 0
+  var navinum = 0
+  function addSymbols(e){
+    var suffixes = ["", "K", "M", "B"];
+    var order = Math.max(Math.floor(Math.log(e.value) / Math.log(1000)), 0);
+    if(order > suffixes.length - 1)
+      order = suffixes.length - 1;
+    var suffix = suffixes[order];
+    return CanvasJS.formatNumber(e.value / Math.pow(1000, order)) + suffix;
+  }
+  var options1 =  {
+    theme: "light2",
+    //exportEnabled: true,
+    title:{
+      text:"Open and Close Bar Chart"
+    },
+    charts: [{
+      toolTip: {
+        shared: true
+      },
+      axisX: {
+        lineThickness: 5,
+        tickLength: 0,
+        labelFormatter: function(e) {
+          return "";
+        }
+      },
+      axisY: {
+		includeZero: false,
+        prefix: "RMB",
+        tickLength: 0
+      },
+      legend: {
+        verticalAlign: "top"
+      },
+      data: [{
+        showInLegend: true,
+        name: "Price (in RMB)",
+        yValueFormatString: "#,###.##",
+        type: "candlestick",
+        dataPoints : dataPoints1
+      },{
+                type: "scatter",
+                legendText: "开多",
+				name: "Open Long",
+                showInLegend: true,
+                markerSize: 8,
+                markerColor: 'orange',
+                markerType: "circle",  //"circle", "square", "cross", "none"
+                dataPoints: datapoint_openlong1},
+
+                {
+                    type: "scatter",
+                    markerSize: 8,
+                    showInLegend: true,
+                    legendText: "平多",
+				    name: "Close Long",
+                    markerColor: 'orange',
+                    markerType: "cross",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_closelong1
+                },
+                {
+                    type: "scatter",
+                    legendText: "开空",
+                    showInLegend: true,
+                    markerSize:8,
+                    markerColor: 'blue',
+				    name: "Open Short",
+
+
+                    markerType: "circle",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_openshort1
+                },
+                {
+                    type: "scatter",
+                    markerSize: 8,
+                    showInLegend: true,
+                    legendText: "平空",
+				    name: "Close Short",
+                    markerColor: 'blue',
+                    markerType: "cross",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_closeshort1
+                }]
+    },{
+      height: 100,
+      toolTip: {
+        shared: true
+      },
+      axisY: {
+        prefix: "",
+
+        tickLength: 0,
+        labelFormatter: addSymbols
+      },
+      legend: {
+        verticalAlign: "top"
+      },
+      data: [{
+        showInLegend: true,
+        name: "Volume",
+        yValueFormatString: "#,###.##",
+        dataPoints : dataPoints2
+      }]
+    }],
+	rangeSelector: {
+       enabled: false, //change it to true
+     },
+    navigator: {
+      data: [{
+        dataPoints: dataPoints3
+      }],
+      slider: {
+        minimum: 0,
+        maximum: 0
+      }
+    }
+  };
+
+  var options2 = {
+    theme: "light2", //"light1", "dark1", "dark2"
+    title:{
+      text:"Open and Close Chart"
+    },
+
+    charts: [{
+      toolTip: {
+        shared: true
+      },
+
+      axisX: {
+        crosshair: {
+          enabled: true,
+          snapToDataPoint: true
+        }
+      },
+      axisY: {
+        prefix: "RMB",
+		includeZero: false,
+        crosshair: {
+          enabled: true,
+          snapToDataPoint: true,
+          valueFormatString: "#,###.##"
+        }
+      },
+      data: [{
+        type: "spline",
+        name: "Price",
+        yValueFormatString: "#,###.##",
+        dataPoints : dataPoints4
+      },{
+                type: "scatter",
+                legendText: "开多",
+                markerSize:8,
+                showInLegend: true,
+				name: "Open Long",
+                markerColor: 'orange',
+                markerType: "circle",  //"circle", "square", "cross", "none"
+                dataPoints: datapoint_openlong2},
+
+                {
+                    type: "scatter",
+                    markerSize: 8,
+                    showInLegend: true,
+				    name: "Close Long",
+                    legendText: "平多",
+                    markerColor: 'orange',
+                    markerType: "cross",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_closelong2
+                },
+                {
+                    type: "scatter",
+                    legendText: "开空",
+                    showInLegend: true,
+					name: "Open Short",
+                    markerSize:8,
+                    markerColor: 'green',
+
+
+                    markerType: "circle",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_openshort2
+                },
+                {
+                    type: "scatter",
+                    markerSize: 8,
+                    showInLegend: true,
+					name: "Close Short",
+                    legendText: "平空",
+                    markerColor: 'green',
+                    markerType: "cross",  //"circle", "square", "cross", "none"
+                    dataPoints: datapoint_closeshort2
+                }]
+    }],
+	 rangeSelector: {
+       enabled: false, //change it to true
+     },
+	 navigator: {
+       data: [{
+        dataPoints: dataPoints4
+      }],
+     slider: {
+        minimum: 0,
+        maximum: 0
+      }
+    }
+  };
+
+
+
+  var stockChart1; var stockChart2;
+
+  window.onload = function()  {
+  //$('#stopall').attr('disabled',true)
+  console.log(testData)
+	stockChart1 = new CanvasJS.StockChart("chartContainer_bar",options1);
+	stockChart2 = new CanvasJS.StockChart("chartContainer",options2);
+	//stockChart2 = new CanvasJS.Chart("chartContainer",options3);
+	console.log('tradingday',tradingDayid, curpos,);
+ 	if (curinst.substr(0,1) === '&' || freqid === '0' )
+    {
+		chartid = 2;
+		updateData(chartid)
+		$("#chartContainer_bar").hide();
+		$("#chartContainer").show();
+
+    }
+	else
+    {
+		chartid = 1;
+		updateData(chartid);
+		$("#chartContainer_bar").show();
+		$("#chartContainer").hide();
+
+    }
+
+  	$("#tablehead").on("click","li",function(){
+        $(this).addClass("current").siblings().removeClass("current");
+        var liIndex = $(this).index();//点击li时，保存当前li的下标index，
+        $(".mycontent").eq(liIndex).addClass("current").siblings(".mycontent").removeClass("current");
+        //内容区class为content且下标等于当前点击的li的下标，移除样式类hide。
+        //也就是content的下标等于当前点击的li的下标，就让它显示出来
+         $(".tablepage").eq(liIndex).addClass("current").siblings(".tablepage").removeClass("current");
+        console.log('tab',liIndex);
+		if (tabindex != liIndex)
+		{
+		   tabindex = liIndex;
+		   var tabname = tablist[tabindex];
+		   var cursel;
+		   if (tabname == 'log') cursel = logsel;
+           else if(tabname == 'trades') cursel = tradesel;
+		   else if(tabname == 'orders') cursel = ordersel;
+		   else cursel = 0;
+		   if (cursel > 0)  updateTable(tabname, cursel);
+		}
+    });
+    if(tradenum > 0){
+		refreshpages('#page_trades',  Math.ceil(tradenum/shownum) );
+
+		$("#page_trades").on('click','li',function() {
+			cursel = $(this).text();
+			if(isNaN(parseInt(cursel)))
+			{
+			   cursel = pagebutton('#page_trades', $(this).attr('name'), tradesel, Math.ceil(tradenum/shownum));
+			}
+			else {
+			   cursel = Number(cursel);
+				$("#page_trades li a").removeClass("current");
+				$(this).children().addClass("current");
+				console.log(cursel)
+			}
+			if (cursel > 0)
+			{
+				tradesel = cursel;
+				updateTable('trades',tradesel);
+
+			}
+
+
+
+		});
+	}
+	if(ordernum > 0)
+	{
+        refreshpages('#page_orders',  Math.ceil(ordernum/shownum) );
+		$("#page_orders").on('click','li',function() {
+			cursel = $(this).text();
+			if(isNaN(parseInt(cursel)))
+			{
+			   cursel = pagebutton('#page_orders', $(this).attr('name'), ordersel, Math.ceil(ordernum/shownum));
+			}
+			else {
+				$("#page_orders li a").removeClass("current");
+				$(this).children().addClass("current");
+				cursel = Number(cursel)
+			}
+			if (cursel > 0)
+			{
+				ordersel = Number(cursel);
+				updateTable('orders',ordersel);
+			}
+
+		});
+	}
+	if (lognum>0)
+	{
+        refreshpages('#page_log',  Math.ceil(lognum/shownum) );
+		$("#page_log").on('click','li',function() {
+			cursel = $(this).text();
+			if(isNaN(parseInt(cursel)))
+			{
+			   cursel = pagebutton('#page_log', $(this).attr('name'),logsel, Math.ceil(lognum/shownum));
+			}
+			else {
+				cursel = Number(cursel)
+				$("#page_log li a").removeClass("current");
+				$(this).children().addClass("current");
+			}
+			if (cursel > 0)
+			{
+			   logsel = Number(cursel);
+			   updateTable('log',logsel);
+				//console.log(logsel);
+			}
+
+
+		});
+    }
+	
+	status = $('#status_title').text();
+	   if (status != '未运行')
+	   {
+			$('#stopall').attr('disabled',false)
+	   
+	   }
+
+  }
+   function updateTable(tablename, page){
+
+  			$.ajax({
+                 type: "POST",
+                 dataType: "json",
+                 async: false,
+                 url: "/page_select_ex",//后端请求url地址
+                 data: {'user':userid,'mode':modeid,
+						'token':tokenid, 'tradingday':tradingDayid,
+						'table':tablename, 'page':page},//后端请求参数
+                 success:function (result) {
+				    if(result.valid)
+					{
+					    //console.log(result.content)
+						if (tablename == 'log')
+						{
+							$('#log .table').remove();
+							$('#log').append(result['content']);
+							totalnum = Number(result['totalnum'])
+							if (Math.ceil(totalnum/shownum) > Math.ceil(lognum/shownum))
+							{
+								addcount = Math.ceil(totalnum/shownum) - Math.ceil(lognum/shownum);
+								appendpages('#page_log',Math.ceil(lognum/shownum), addcount);
+							}
+							lognum = totalnum;
+						}
+						else if (tablename =='orders')
+						{
+							$('#order .table').remove();
+							$('#order').append(result['content']);
+							totalnum = Number(result['totalnum'])
+							if (Math.ceil(totalnum/shownum) > Math.ceil(ordernum/shownum))
+							{
+								addcount = Math.ceil(totalnum/shownum) - Math.ceil(ordernum/shownum);
+								appendpages('#page_orders',Math.ceil(ordernum/shownum), addcount);
+							}
+							ordernum = totalnum;
+						}
+						else if (tablename == 'trades')
+						{
+							$('#trade .table').remove();
+							$('#trade').append(result['content']);
+							totalnum = Number(result['totalnum'])
+							if (Math.ceil(totalnum/shownum) > Math.ceil(tradenum/shownum))
+							{
+								addcount = Math.ceil(totalnum/shownum) - Math.ceil(tradenum/shownum);
+								appendpages('#page_trades', Math.ceil(tradenum/shownum)	, addcount);
+							}
+							tradenum = totalnum;
+						}
+				    }
+
+                 }
+             });
+
+
+  }
+   function updateChart(){
+        if(!timerRunning){
+                 timerRunning = true;
+
+                 $.ajax({
+                 type: "POST",
+                 dataType: "json",
+                 async: false,
+                 url: "/timer_refresh",//后端请求url地址
+                 data: {'user':userid,'curpos':curpos,'mode':modeid,'curstginst':curstginst,
+				 'freq':freqid,'token':tokenid, 'tradingday':tradingDayid,
+				 'ordernum':ordernum, 'ordersel':ordersel,'tradenum':tradenum, 'tradesel':tradesel,
+				 'lognum':lognum, 'logsel':logsel,'tabname':tablist[tabindex]},//后端请求参数
+                 success:function (result) {
+				     if (result.valid)
+					 {
+					    if (result.tradingday != tradingDayid)
+                         {
+					       location.reload();
+						   return;
+					     }
+						 testData = result['data']
+						 curpos = result['curpos']
+						 console.log(testData, curpos)
+						 updateData(chartid, true);
+						 if (result.trades != '')
+						 {
+						    $('#trade .table').remove();
+							$('#trade').append(result['trades']);
+						}
+						 if (result.orders !='')
+						 {
+						    $('#order .table').remove();
+							$('#order').append(result['orders']);
+						  }
+						 if (result.log !='')
+						 {
+						    $('#log .table').remove();
+							$('#log').append(result['log']);
+						  }
+						  //console.log(result.log);
+						  $('#account .table').remove();
+							$('#account').append(result['account']);
+
+						  $('#position .table').remove();
+							$('#position').append(result['position']);
+						  $('#balance').text(result.balance);
+						   $('#status_title').text(result.status);
+						   if (result.status === '未运行')
+						   {
+								$('#stopall').attr('disabled',true)
+						   }
+						   else
+						   {
+								$('#stopall').attr('disabled',false)
+						   
+						   }
+
+					 }
+				     timerRunning = false;
+                 },
+				 error: function(XMLHttpRequest, textStatus, errorThrown){
+                     timerRunning = false;
+                     console.log('error');
+					 console.log(XMLHttpRequest);
+					 console.log(textStatus);
+				 }
+             });
+        }
+  }
+  function updateData(chartid,append=false){
+       if(chartid == 1)
+	   {
+	        if(!append)
+			{
+				dataPoints1 = []; dataPoints2 = []; dataPoints3 = [];
+				datapoint_closelong1 = [];
+				datapoint_openlong1 = [];
+				datapoint_closeshort1 = [];
+				datapoint_openshort1 = [];
+			}
+			if (JSON.stringify(testData)!='{}')
+			{
+				for(var i = 0; i < testData.length; i++){
+				  dataPoints1.push({label: testData[i].date, y: [Number(testData[i].open), Number(testData[i].high), Number(testData[i].low), Number(testData[i].close)], color: testData[i].open > testData[i].close ? "green" : "red"});;
+				  dataPoints2.push({label: testData[i].date, y: Number(testData[i].volume), color: testData[i].open > testData[i].close ? "green" : "red"});
+				  dataPoints3.push({label: testData[i].date, y: Number(testData[i].close)});
+				  var p = Number(testData[i].openlong);
+				  if (p == 0) p = Number.NaN;
+				  datapoint_openlong1.push({label: testData[i].date, y: p});
+				  p = Number(testData[i].closelong);
+				  if (p == 0) p = Number.NaN;
+				  datapoint_closelong1.push({label: testData[i].date, y: p});
+				  p = Number(testData[i].openshort);
+				  if (p == 0) p = Number.NaN;
+				  datapoint_openshort1.push({label: testData[i].date, y: p});
+				  p = Number(testData[i].closeshort);
+				  if (p == 0) p = Number.NaN;
+				  datapoint_closeshort1.push({label: testData[i].date, y: p});
+				}
+			}
+			//if (dataPoints1.length > 5)
+			{
+				stockChart1.options.charts[0].data[0].dataPoints=dataPoints1
+				stockChart1.options.charts[1].data[0].dataPoints=dataPoints2
+				stockChart1.options.navigator.data[0].dataPoints=dataPoints3
+				stockChart1.options.charts[0].data[1].dataPoints=datapoint_openlong1
+				stockChart1.options.charts[0].data[2].dataPoints=datapoint_closelong1
+				stockChart1.options.charts[0].data[3].dataPoints=datapoint_openshort1
+				stockChart1.options.charts[0].data[4].dataPoints=datapoint_closeshort1
+				var lastindex = dataPoints1.length;
+			    stockChart1.render();
+				stockChart1.navigator.slider.set('maximum' , lastindex);
+
+			}
+			/*else{
+				stockChart1.options.charts[0].data[0].dataPoints=[]
+				stockChart1.options.charts[1].data[0].dataPoints=[]
+				stockChart1.options.navigator.data[0].dataPoints=[]
+				stockChart1.options.charts[0].data[1].dataPoints=[]
+				stockChart1.options.charts[0].data[2].dataPoints=[]
+				stockChart1.options.charts[0].data[3].dataPoints=[]
+				stockChart1.options.charts[0].data[4].dataPoints=[]
+
+
+			}*/
+
+		}
+	   else if (chartid == 2)
+	   {
+	        if(!append)
+			{
+				dataPoints4 = []; dataPoints5 = [];
+				datapoint_closelong2 = [];
+				datapoint_openlong2 = [];
+				datapoint_closeshort2 = [];
+				datapoint_openshort2 = [];
+			}
+			if(JSON.stringify(testData)!='{}')
+			{
+				for(var i = 0; i < testData.length; i++){
+					  dataPoints4.push({label: testData[i].date, y: Number(testData[i].current)});
+					  //dataPoints5.push({label: testData[i].date, y: Number(testData[i].volume), color: testData[i].open > testData[i].close ? "green" : "red"});
+					  var p = Number(testData[i].openlong);
+					  if (p == 0) p = Number.NaN;
+					  datapoint_openlong2.push({label: testData[i].date, y: p})
+					  p = Number(testData[i].closelong);
+					  if (p == 0) p = Number.NaN;
+					  datapoint_closelong2.push({label: testData[i].date, y: p})
+					  p = Number(testData[i].openshort);
+					  if (p == 0) p = Number.NaN;
+					  datapoint_openshort2.push({label: testData[i].date, y: p})
+					  p = Number(testData[i].closeshort);
+					  if (p == 0) p = Number.NaN;
+					  datapoint_closeshort2.push({label: testData[i].date, y: p})
+				}
+			}
+			if(dataPoints4.length > 2)
+			{
+				stockChart2.options.charts[0].data[0].dataPoints=dataPoints4
+				//stockChart1.options.charts[1].data[0].dataPoints=dataPoints5
+				//stockChart2.options.data[0].dataPoints=dataPoints
+				stockChart2.options.navigator.data[0].dataPoints=dataPoints4
+				stockChart2.options.charts[0].data[1].dataPoints=datapoint_openlong2
+				stockChart2.options.charts[0].data[2].dataPoints=datapoint_closelong2
+				stockChart2.options.charts[0].data[3].dataPoints=datapoint_openshort2
+				stockChart2.options.charts[0].data[4].dataPoints=datapoint_closeshort2
+				stockChart2.render();
+				console.log(minnavi_new)
+				console.log(minnavi_change)
+				console.log(minnavi)
+				console.log(navinum)
+
+				minnavi_new = stockChart2.navigator.slider.minimum
+				if(minnavi_new==minnavi){
+					var lastindex = dataPoints4.length;
+
+					stockChart2.navigator.slider.set('maximum',lastindex);
+					if (lastindex > 10000 )
+					{
+					  stockChart2.navigator.slider.set('minimum' , lastindex-10000);
+					}
+					minnavi = stockChart2.navigator.slider.minimum
+
+
+				}
+				else{
+
+					if(navinum < 5){
+						if(minnavi_change !=minnavi_new){
+							navinum = 0
+							minnavi_change = minnavi_new
+						}
+						else{
+							navinum = navinum + 1
+							minnavi_change = minnavi_new
+						}
+
+					}
+					else{
+						var lastindex = dataPoints4.length;
+						stockChart2.navigator.slider.set('maximum',lastindex);
+						if (lastindex > 10000 )
+						{
+						  stockChart2.navigator.slider.set('minimum' , lastindex-10000);
+						}
+						minnavi = stockChart2.navigator.slider.minimum
+						navinum = 0
+					}
+
+				}
+
+	        }
+			else
+			{
+				stockChart2.options.charts[0].data[0].dataPoints=[]
+				//stockChart1.options.charts[1].data[0].dataPoints=dataPoints5
+				//stockChart2.options.data[0].dataPoints=dataPoints
+				stockChart2.options.navigator.data[0].dataPoints=[]
+				stockChart2.options.charts[0].data[1].dataPoints=[]
+				stockChart2.options.charts[0].data[2].dataPoints=[]
+				stockChart2.options.charts[0].data[3].dataPoints=[]
+				stockChart2.options.charts[0].data[4].dataPoints=[]
+				stockChart2.render();
+
+			}
+	   }
+
+
+  }
+  function changestg(choose, id) {
+        var select = document.getElementById(choose);
+
+        for (i = 0; i < select.length; i++) {
+            if (select[i].selected) { //判断被选中项
+                Name_stg = select[i].text;
+				if (Name_stg != curstg)
+				{
+
+					$(id).html(""); //每次重新选择当前列表框，就清空下一级列表框。
+				    curstg = Name_stg;
+                    $("<option selected='selected' disabled='disabled'  style='display: none' value=''></option> ").appendTo(id);
+                    for (i = 0; i < stgdetails[curstg].length; i++) {
+                           $("<option value='" + stgdetails[curstg][i] + "'>" + stgdetails[curstg][i] + "</option>").appendTo(id);
+					}
+					curinst = '';
+				}
+            }
+        }
+    }
+    function changeinst(choose) {
+        var select = document.getElementById(choose);
+        for (i = 0; i < select.length; i++) {
+            if (select[i].selected) { //判断被选中项
+                Name_inst = select[i].text;
+				if (curinst != Name_inst){
+				  curinst = Name_inst;
+				  curstginst = curstg+'_'+curinst;
+                  console.log(curstginst, curstg, curinst)
+                  $.ajax({ //发起ajax请求
+					type: "POST",
+					dataType: "json",
+					async: false,
+					url: '/change_inst_ex',
+                    data: {'curinst':curinst,'curstg':curstg,
+					        'user':userid,'tradingday':tradingDayid,
+							'mode':modeid,'token':tokenid},
+                    success: function (result) {
+                        console.log(result);
+						if(result.valid){
+							testData = result['data'];
+							freq = result['freq']
+							freqid = freq.toString()
+							curpos = result['curpos']
+							curinst = result.curinst;
+							if(freq===0 || curinst.substr(0,1) === '&'){
+										$("#chartContainer").show();
+										$("#chartContainer_bar").hide();
+										chartid = 2;
+										updateData(chartid);
+										console.log(2)
+									}
+							else{
+										$("#chartContainer").hide();
+										$("#chartContainer_bar").show();
+										chartid = 1
+										updateData(chartid);
+								}
+							console.log(freq,chartid)	
+						}
+                    },
+					error: function(XMLHttpRequest, textStatus, errorThrown){
+						 console.log('error');
+						 console.log(XMLHttpRequest);
+						 console.log(textStatus);
+					}
+                  });
+				}
+            }
+        }
+    }
+	function stopall(){
+		//弹出提示框
+		$('#delcfmModel').modal({ backdrop: 'static', keyboard: false })
+	        .one('click', '#btnOkDelete', function() {
+	        	
+	        	//这里放入点击确认后的代码
+	        $.ajax({type: "POST",
+				url: "/stop_all_ex",
+				dataType: "json",
+				data:{'user':userid,'token':tokenid},
+				success: function(msg){
+						if (msg.success) $('#status_title').text(msg.status);
+						
+				}});
+	    });
+	}
+	function refreshpages (pageid, pagecount){
+	        
+        var tdstart="<li><a name='prev' >&laquo;</a></li>";
+        var tdend="<li><a name='next'>&raquo;</a></li>";
+        var tb = $(pageid); 
+		$(pageid+' li').remove();
+        if (pagecount > 0)
+        {
+            tb.append(tdstart)
+			for (var i=0;i<pagecount;i++){
+                var td="<li><a class='pageof_trade' >"+(i+1).toString()+"</a></li>";
+			    if(i == 0) td ="<li><a class='pageof_trade current'>"+(i+1).toString()+"</a></li>";
+                tb.append(td)
+			}
+			tb.append(tdend)
+		}		
+	}
+    function appendpages(pageid, total, addcount){
+        var tdend="<li><a  name='next'>&raquo;</a></li>";
+        var tb = $(pageid); 
+	    //.remove();
+		for (var i=0;i<addcount;i++){
+                var td="<li><a class='pageof_trade'>"+(total+i+1).toString()+"</a></li>";
+                $(pageid+' li:last').before(td)
+			}
+			//tb.append(tdend)
+	}
+	function pagebutton(pageid, opname, cursel, max){
+		if (opname =='prev' && cursel > 1)
+		{
+			var index = cursel - 1;
+			//console.log(cursel, index);
+			$(pageid+' li a').removeClass('current');
+			$(pageid+' li').children().eq(index).addClass('current');
+			return index;
+		}
+		if (opname == 'next' && cursel < max)
+		{
+		    var index = cursel + 1;
+			//console.log(cursel, index);
+			$(pageid+' li a').removeClass('current');
+			$(pageid+' li').children().eq(index).addClass('current');
+			return index;
+		}
+		return 0;
+	}
+    var newid = setInterval(function(){updateChart()}, 3000);
+	for (var i=1; i < newid ; i ++)
+    {
+	     clearInterval(i);
+    }
+</script>
+<div class="container">
+	<div class="row clearfix">
+	    <div class="col-md-12 column">
+			<div class="modal fade" id="delcfmModel">
+				<div class="modal-dialog">
+					<div class="modal-content message_align">
+						<div class="modal-header">
+							<h4 class="modal-title">停止程序</h4>
+						
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+									aria-hidden="true">×</span></button>            </div>
+							<div class="modal-body">
+								<p id="delcfmMsg">您确认要停止整个程序运行吗？</p>
+							</div>
+							<div class="modal-footer">
+							<button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+							<a class="btn btn-success" data-dismiss="modal" id="btnOkDelete" >确定</a>
+						</div>
+					</div><!-- /.modal-content -->
+				</div><!-- /.modal-dialog -->
+			</div><!-- /.modal -->
+
+		</div>
+        <div class="col-md-3 column">
+			<div class="page-header">
+				<h2>
+					SUMMARY
+				</h2>
+			</div>
+			<ul style="font-size: 1.3rem">
+				<li>
+					👤 <span>{{ user }}</span>
+				</li>
+				<li>
+					💡 <span>{{mode}}</span>
+				</li>
+				<li>
+					💰 <span id="balance">{{ balance }}</span>
+				</li>
+				<li>
+					📌 <span id="status_title">{{status_title}} </span>
+				</li>
+			</ul>
+             <button type="button" disabled="true" class="btn btn-info btn-lg" id="stopall"  onclick="stopall()">停止程序</button>
+			 <hr>
+             <div> 
+			   	   {% for key, value in indicators.items() %}
+	                 <b><span>{{ key }}:</span><span>  {{ value }} </span> </b><br>    
+                   {% endfor %}
+			 </div>
+
+		</div>
+
+		<div class="col-md-9 column"  style="margin-top:2%">
+            <div >
+                <form>
+                    <label>策略:</label>
+                    <select name="stg_selection" id="stg_selection" onchange="changestg('stg_selection',inst_selection)">
+                        {% for stg_name in stg_name_list %}
+                            <option value="{{ stg_name }}"> {{ stg_name }} </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            
+            <!--<div class="am-u-lg-3 am-u-md-3 am-u-sm-3 am-u-sm-offset-3">-->
+				<form class="am-form">
+					<label for="zhekou"> 合约:</label>
+					<select name="inst_selection" id="inst_selection" onchange="changeinst('inst_selection')">
+                        {% for inst_name in inst_name_list %}
+                            <option value="{{ inst_name }}"> {{ inst_name }} </option>
+                        {% endfor %}					</select>
+					<br>
+				</form>
+			</div>
+ 			<div id="chartContainer" style="height: 500px; width: 100%;"></div>
+			<div id="chartContainer_bar" style="height: 500px; width: 100%; "></div>
+        </div>
+
+        <div class="col-md-12 column">
+            <div id="tablecontext">
+            <div class="headtable" id="tablehead">
+              <ul>
+                <li class="current">成交</li>
+                <li>委托</li>
+                <li>持仓</li>
+                <li>权益</li>
+                <li>日志</li>
+              </ul>
+            </div>
+            <div class="bodytable">
+              <ul>
+                <li class="mycontent current" id="trade">
+					<table class="table">
+						<tr >
+                           {{trades_item|safe}}
+						</tr>
+					</table>
+
+				</li>	
+                <li class="mycontent" id="order">
+					<table class="table" >
+						<tr>
+                           {{orders_item|safe}}
+						</tr>
+					</table>
+				</li>
+                <li  class="mycontent" id="position">
+					<table class="table" >
+						<tr>
+                           {{position_item|safe}}
+						</tr>
+					</table>
+				</li>
+				<li  class="mycontent" id="account">
+					<table class="table">
+						<tr>
+                           {{account_item|safe}}
+						</tr>
+					</table>
+				</li>
+
+                <li  class="mycontent" id="log">
+					<table class="table">
+                           {{log_item|safe}}
+
+					</table>
+				</li>
+              </ul>
+
+            </div>
+            <div class="cd">
+				<div class="tablepage current">
+					<ul class="pagination" id="page_trades">
+                    </ul>
+				</div>
+				<div class="tablepage ">
+					<ul class="pagination" id="page_orders">
+                    </ul>
+				</div>
+				<div class="tablepage "></div>
+				<div class="tablepage "></div>
+				<div class="tablepage">
+					<ul class="pagination" id="page_log">
+                    </ul>
+				</div>
+            </div>
+          </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+
+
+
