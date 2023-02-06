@@ -5,13 +5,13 @@ Created on Tue Nov 30 20:01:48 2021
 @author: ScottStation
 """
 
-__version__ = '1.0.5'
+__version__ = '1.0.6'
 
 from .qeinterface import qeStratBase
 from .qeinterface import make_order
 from .qeinterface import cancel_order
 from .qeinterface import get_bar
-from .qecsvorder import algo_trade
+#from .qecsvorder import algo_trade
 from .qemain import runStrat
 from .qemain import startSimuProcess
 from .qemain import startRealProcess

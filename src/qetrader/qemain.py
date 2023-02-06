@@ -19,7 +19,7 @@ from .qeinterface import qeStratBase, simuqueue
 from .qestatistics import g_stat
 from .qebacktestmul import runBacktest, historyDataBackTest, dynamicBacktest
 from .qeredisdb import savePidToDB,saveStrategyfreqToDB,initMyredis
-from .qecsvorder import qeCsvOrders
+#from .qecsvorder import qeCsvOrders
 from .qeglobal import  getAccidTraderQueue, setClassAccID, getExemode
 from .qesysconf import read_sysconfig
 #from .qecsvorder import g_csvorders
@@ -177,7 +177,7 @@ def getAddress(user, mode, account, rfrate=0.02):
     return address
 
 
-def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_724=False, csv_orders=False, \
+def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_724=False, 
                      simnow724_account=None, md=['ctp'], printlog=True, rfrate=0.02, record_strat=False, async_strats=False):
     global processlist, curuser, master_strat_id
     #if not ignorepass and not checkUserValid(user):
@@ -281,9 +281,9 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
     curuser = user.replace('/', '')
     initLogger(curuser, False,printlog=printlog)
     
-    if csv_orders:
-        csvstrat = qeCsvOrders()
-        strats.append(csvstrat)
+    #if csv_orders:
+    #    csvstrat = qeCsvOrders()
+    #    strats.append(csvstrat)
     
     #tradingday = getCurTradingDay()
     #g_stat.loadFromDBSimu(curuser, token, tradingday)
@@ -410,7 +410,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
         results = pool.map(processFunc, processlist)
 
 
-def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, mode_724=False, csv_orders=False,  riskctlparas=None,printlog=True,rfrate=0.02, record_strat=False, async_strats=False, skip_settle_check=False):
+def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, mode_724=False,  riskctlparas=None,printlog=True,rfrate=0.02, record_strat=False, async_strats=False, skip_settle_check=False):
     global processlist, curuser, master_strat_id
     #if not ignorepass and not checkUserValid(user):
     #    print(u'您的用户名或密码不正确。')
@@ -543,9 +543,9 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
                 return
         print('请通过如下网址查看交易：')
         print(str(getAddress(user, mode='real',account=token,rfrate=rfrate)))
-        if csv_orders:
-            csvstrat = qeCsvOrders()
-            strats.append(csvstrat)
+        #if csv_orders:
+        #    csvstrat = qeCsvOrders()
+        #    strats.append(csvstrat)
 
         nameset = set()
         i = 0
@@ -718,7 +718,7 @@ def isDataModeValid(datamode):
  
         
         
-def runStrat(user, runmode, strat,  simu_token=None, simu_md=['ctp'],mode_724=False, csv_orders=False, record_strat=False,\
+def runStrat(user, runmode, strat,  simu_token=None, simu_md=['ctp'],mode_724=False, record_strat=False,\
              simu_simnow724_account=None, real_account=None,\
              printlog=True, rfrate=0.00, test_dynamic_instid=True, test_data=None, test_startdate=None, test_enddate=None, \
              test_exdata=None,  test_initcap=10000000, test_showchart=False,
@@ -868,11 +868,11 @@ def runStrat(user, runmode, strat,  simu_token=None, simu_md=['ctp'],mode_724=Fa
             
             
     elif runmode == 'simu':
-        startSimuProcess(user, simu_token, strats,md=simu_md, mode_724=mode_724, csv_orders=csv_orders, simnow724_account=simu_simnow724_account,\
+        startSimuProcess(user, simu_token, strats,md=simu_md, mode_724=mode_724, simnow724_account=simu_simnow724_account,\
                          printlog=printlog,rfrate=rfrate, record_strat=record_strat, async_strats=async_strats)
         
     elif runmode == 'real':
-        startRealProcess(user, strats, real_account,mode_724=mode_724, csv_orders=csv_orders, printlog=printlog,rfrate=rfrate,record_strat=record_strat, skip_settle_check=real_skip_settle_check)
+        startRealProcess(user, strats, real_account,mode_724=mode_724, printlog=printlog,rfrate=rfrate,record_strat=record_strat, skip_settle_check=real_skip_settle_check)
         
     else:
         print('不合法的runmode', runmode)
