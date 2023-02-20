@@ -58,6 +58,12 @@ class qeStratBase:
 
     def crossDay(self, context):
         pass
+    
+    def handleOrder(self,order, context):
+        pass
+    
+    def handleTrade(self,trade,context):
+        pass
 
     async def aio_onBar(self,context):
         pass
