@@ -61,6 +61,9 @@ class qeStratBase:
     
     def handleOrder(self,order, context):
         pass
+
+    def handleOrderError(self,order, context):
+        pass
     
     def handleTrade(self,trade,context):
         pass

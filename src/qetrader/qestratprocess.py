@@ -262,6 +262,14 @@ class qeStratProcess:
                             except Exception as e:
                                 print(f'Error on strat.handleOrder: {e}')
                             self.handleOrder(d,context)
+                        elif d['type'] == qetype.KEY_ON_ORDER_ERROR:
+                            #print('on_Order')
+                            #print('3',d)
+                            try:
+                                strat.handleOrderError(d,context)
+                            except Exception as e:
+                                print(f'Error on strat.handleOrderError: {e}')
+                            self.handleOrder(d,context)
                         elif d['type'] == qetype.KEY_ON_TRADE:
                             try:
                                 strat.handleTrade(d,context)
