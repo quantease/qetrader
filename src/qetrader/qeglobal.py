@@ -196,6 +196,14 @@ def is_trade_day(date):
 #            return False
 #    else:
 #        return True
+def get_Instrument_ticksize(instid):
+    ticksize = {'AG':1,'CU':10,'AL':5,'HC':1,'RB':1,'PB':5,'NI':10,'RU':5,'AU':0.05,'ZN':5,'BU':2,'FU':1,'SP':2,'SN':10,
+					  'A':1,'B':1,'C':1,'M':1,'Y':2,'P':2,'L':5,'V':5,'J':0.5,'JM':0.5,'I':0.5,'JD':1,'FB':0.5,'BB':0.05,'PP':1,'CS':1,'EG':1,'RR':1,'EB':1,'PG':1,'LH':5,
+					  'PM':1,'WH':1,'SR':1,'CF':5,'TA':2,'OI':1,'RI':1,'MA':1,'FG':1,'RS':1,'RM':1,'ZC':0.2,'JR':1,'LR':1,'SF':2,'SM':2,'CY':5,'AP':1,'CJ':5,'UR':1,'SA':1,'PF':2,'PK':2,
+					  'SC':0.1,'LU':1,'NR':5,'BC':5,
+					  'IF':0.2,'IC':0.2,'IH':0.2,'IM':0.2,'SI':5}
+    getProd = lambda x: x[0] if x[1].isdigit() else x[:2]
+    return ticksize.get(getProd(instid),1)
 
 
 def get_Instrument_volmult(instid):

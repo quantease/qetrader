@@ -320,7 +320,7 @@ class qeCtpTrader(object):
                         d['closetype'] = "closetoday"
             elif exID != 'SFE' and exID != 'INE':
                     d['closetype'] = "close"
-            
+        #print('sendOrder',d['stratName'])    
         self.tradespi.sendOrder(d)
         if repeat:
             self.tradespi.sendOrder(d1)
@@ -1044,7 +1044,7 @@ class CTradeSpi(TraderApiWrapper):
         if nRequestID != self.reqID:
             return
         try:
-            if pOrder:
+            if pOrder and not int(pOrder.OrderRef) in self.account.orders:
                 d = {}
                 d['type'] = qetype.KEY_ON_ORDER
                 instid = pOrder.InstrumentID
@@ -1098,7 +1098,7 @@ class CTradeSpi(TraderApiWrapper):
         if nRequestID != self.reqID:
             return
         try:
-            if pTrade:
+            if pTrade and not int(pTrade.OrderRef) in self.account.orders:
                 d = {}
                 d['type'] = qetype.KEY_ON_TRADE
         #         d['instid'] = pTrade.InstrumentID
@@ -1274,7 +1274,7 @@ class CTradeSpi(TraderApiWrapper):
 #         d['instid'] = pTrade.InstrumentID
         exchange = exchangeMapReverse.get(pTrade.ExchangeID,"")
         d['instid'] = transInstID2Context(pTrade.InstrumentID,exchange)
-        d['stratName'] = ''
+        #d['stratName'] = ''
         d['orderid'] = int(pTrade.OrderRef)
         d['direction_ctp'] = pTrade.Direction
         d['tradevol'] = pTrade.Volume

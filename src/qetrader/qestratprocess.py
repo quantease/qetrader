@@ -509,7 +509,7 @@ class qeStratProcess:
     def handleOrder(self,order,context):  
         try:     
             corder = context.orders.get(order['orderid'],None)
-            #print('1',corder)
+            print('stratprocess 1',corder)
             if corder:
                 #time = str(order['timedigit'])
                 corder['status'] = order['status']
