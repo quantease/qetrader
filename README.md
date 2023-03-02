@@ -227,3 +227,56 @@ qetrader交易接口可以通过pip直接安装在用户本地，实现在任意
 
 
 
+## 插件使用说明
+
+
+
+### 安装
+
+以“algoex“插件为例，下载插件代码如下：
+
+```python
+from qesdk import auth
+auth('your username','your authcode')
+from qetrader.qeplugins import installPlugin
+installPlugin('algoex')
+```
+
+运行代码后，出现如下提示代表安装成功：
+
+```
+插件algoex下载成功
+在策略文件中按如下格式import该插件:
+from qetrader.plugins.qealgoex import plugin_algoex
+```
+
+> 注;下载插件需要成为VIP付费客户，否则会下载失败。注册VIP请联系客户
+
+### 引用插件
+
+以'algoex'为例，根据按照的说明，在code中使用：
+
+```python
+from qesdk import auth
+##授权码
+auth('your username','your authcode')
+from qetrader import listSimuAccounts, createSimuAccount,runStrat
+from qetrader.plugins.qealgoex import plugin_algoex 
+
+##实盘账户信息
+user_setting = {'investorid':'xxxxxx', 'password':'xxxxxxxx','broker':'xxxxxx'}
+
+if __name__=='__main__':
+    ##换成自己的用户名
+    user='myname'
+    ##如果有模拟账户，用第一个账户，没有新建一个
+    tokenlist = listSimuAccounts(user)
+    if len(tokenlist) > 0:
+        token = tokenlist[0]
+    else:
+        token = createSimuAccount(user)
+    ##运行策略，algoex插件本身就是个策略实例，可以直接使用
+    runStrat(user,'real',[plugin_algoex], simu_token=token,real_account=user_setting)
+
+```
+
