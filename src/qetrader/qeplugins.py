@@ -29,7 +29,7 @@ global_platform = get_plat()
 
 global_pluginpath = os.path.abspath(os.path.dirname(__file__))+'/plugins/'
 
-def installPlugin(plugin_name, overwrite=False):
+def installPlugin(plugin_name, version='latest'):
     ##If already exist
     ##getPackageAddress
     try:
@@ -43,10 +43,7 @@ def installPlugin(plugin_name, overwrite=False):
             print(msg)
             return
         fullname = global_pluginpath+filename
-        if not overwrite and os.path.exists(fullname):
-            print('该插件已经存在')
-            return
-        if not downloadFile(plugin_name, token, filename):
+        if not downloadFile(plugin_name, token, filename,version):
             print('插件下载失败')
             return 
         if os.path.exists(fullname):
@@ -56,16 +53,16 @@ def installPlugin(plugin_name, overwrite=False):
         
         os.rename(fullname+'-bak',fullname)
         print(f'插件{plugin_name}下载成功')
-        print(f'在策略文件中按如下格式import该插件:')
+        print('在策略文件中按如下格式import该插件:')
         print(f'from qetrader.plugins.qe{plugin_name} import plugin_{plugin_name}')
         ##DownloadPackage
         ##Overwrite and show information
     except Exception as e:
         print(f"Error: {e.__traceback__.tb_lineno} {e}")
     
-def downloadFile(plugin, token, filename):
+def downloadFile(plugin, token, filename,version):
     url = 'https://quantease.cn/auth/get_plugins'
-    params={'plugin':plugin,'token':token,'filename':filename}
+    params={'plugin':plugin,'token':token,'filename':filename,'version':version}
     try:
         r = requests.get(url,params)
         fullname = global_pluginpath+filename+'-bak'
