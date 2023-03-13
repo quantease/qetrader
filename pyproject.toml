@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qetrader"
-version = "1.0.10"
+version = "1.0.11"
 authors = [
   { name="Scott Zhang", email="scott2011@qq.com" },
 ]
@@ -31,7 +31,8 @@ dependencies = [
   'qesdk>=0.0.15',
   'quantstats>=0.0.59',
   'redis>=4.3.4',
-  'scipy>=1.7.3'
+  'scipy>=1.7.3',
+  'passlib>=1.7.4'
 ]
 [project.urls]
 "Homepage" = "https://github.com/quantease/qetrader"

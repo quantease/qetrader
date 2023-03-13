@@ -5,7 +5,7 @@ Created on Tue Nov 30 20:01:48 2021
 @author: ScottStation
 """
 
-__version__ = '1.0.10'
+__version__ = '1.0.11'
 
 from .qeinterface import qeStratBase
 from .qeinterface import make_order
@@ -21,6 +21,7 @@ from .qemain import getuserid
 from .qesimtrader import createSimuAccount
 from .qesimtrader import listSimuAccounts
 from .qesimtrader import removeSimuAccountData
+from .qesimtrader import setSimuAccountCapital
 from .qeinterface import record_hedge_point
 #from .qereal_monitor_tab import run_real_monitor
 #from .qesimu_monitor_tab import run_simu_monitor

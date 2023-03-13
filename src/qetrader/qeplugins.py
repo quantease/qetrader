@@ -48,7 +48,7 @@ def installPlugin(plugin_name, version='latest'):
             return 
         if os.path.exists(fullname):
             print('下载完毕，正在删除旧版插件...')
-            os.chmod(fullname,stat.S_IRWXO)
+            os.chmod(fullname, 0o777)
             os.remove(fullname)
         
         os.rename(fullname+'-bak',fullname)

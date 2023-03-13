@@ -618,6 +618,19 @@ def listSimuAccounts(user):
     else:
         return []             
 
+def setSimuAccountCapital(user, token, capital):
+    try:
+        acc = getDBAccountData(user, token)
+        if acc:
+            d = json.loads(acc)
+            d['balance'] = float(capital)
+            saveAccountDataToDB(user,token,d)
+            print(f'Change account capital to {capital} successfully.')
+        else:
+            print('Query account information failed')
+    except Exception as e:
+        print(f'Error:{e}')
+        
 class QEsimtrader(object):
 
     def __init__(self):
