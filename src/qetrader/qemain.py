@@ -8,6 +8,7 @@ Created on Wed Nov  3 11:30:36 2021
 from multiprocessing.dummy import Pool
 from multiprocessing import Queue, cpu_count
 from .qectpmarket_wrap import runQEMarketProcess,  checkMarketTime
+from .qestockmarket import runStockMarketProcess, checkStockTime
 #from .qectptrader import runQERealTraderProcess
 from .qectptrader_wrap import runQERealTraderProcess
 from .qesimtrader import  runQETraderProcess #, getCurTradingDay
@@ -20,7 +21,7 @@ from .qestatistics import g_stat
 from .qebacktestmul import runBacktest, historyDataBackTest, dynamicBacktest
 from .qeredisdb import savePidToDB,saveStrategyfreqToDB,initMyredis
 #from .qecsvorder import qeCsvOrders
-from .qeglobal import  getAccidTraderQueue, setClassAccID, getExemode
+from .qeglobal import  getAccidTraderQueue, setClassAccID
 from .qesysconf import read_sysconfig
 #from .qecsvorder import g_csvorders
 
@@ -115,7 +116,9 @@ def processFunc(processInfo):
             elif processInfo['name'].find('sopt') >= 0 and soptmd:
                 soptmd(curuser,'888888',processInfo['strats'],processInfo['runmode'], None)
                 logger.info("add sopt Market")
-                
+            elif processInfo['name'].find('stock') >= 0:
+                runStockMarketProcess(curuser,'888888',processInfo['strats'],processInfo['runmode'])
+                logger.info("add stock Market") 
             
         elif processInfo['type'] == 'trader':
             logger.info("add simulation Trader")
@@ -160,7 +163,7 @@ def getAddress(user, mode, account, rfrate=0.02):
     # webaddress = socket.gethostbyname(socket.gethostname())
     ip = '127.0.0.1:5000'
     try:
-        from .qedockerconfig import log_path
+        #from .qedockerconfig import log_path
         with open('/srv/jupyterhub/webhost', 'r') as f:
             ip = f.read()
             if ip[-1] == '\n' or ip[-1] == '\t' or ip[-1] == '\r':
@@ -272,6 +275,8 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
             if ('ctp' in md or 'ctptest' in md) and checkMarketTime(now):
                 markettime = True
             if ('sopt' in md or 'sopttest' in md) and sopttime and sopttime(now):
+                markettime = True
+            if 'stock' in md and checkStockTime(now):
                 markettime = True
             if not markettime:    
                 print(u"市场此时没有开盘.")
@@ -537,6 +542,8 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
             if ('ctp' in apiset or 'ctptest' in apiset) and checkMarketTime(now):
                 markettime = True
             if ('sopt' in apiset or 'sopttest' in apiset) and sopttime and sopttime(now):
+                markettime = True
+            if 'stock' in md and checkStockTime(now):
                 markettime = True
             if not markettime:    
                 print(u"市场此时没有开盘.")

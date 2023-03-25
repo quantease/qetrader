@@ -15,6 +15,7 @@ from .qetype import qetype
 from datetime import datetime,timedelta
 from .qeglobal import  is_trade_day
 from .qectpmarket_wrap import changeCtpInstIDs
+from .qestockmarket import changeStockInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 from .qeredisdb import saveHedgeMarketToDB
@@ -30,9 +31,9 @@ from threading import Timer
 #from .qeaccount import realaccount
 from .qesimtrader import simuaccount
 #from .qeriskctl import soptriskctl
-from .qeinterface import cancel_order, make_order
-from .qeglobal import g_userinfo, qeInstSett, instSetts, setTradingDaySaved, getTradingDaySaved
-import random
+#from .qeinterface import cancel_order, make_order
+from .qeglobal import g_userinfo, qeInstSett, setTradingDaySaved, getTradingDaySaved
+#import random
 from .qestratmarket_wrap import readStratPosition_wrap, writeStratPosition_wrap,writeStratStat_wrap,writeStratTrade_wrap
 from .qestratmarket_wrap import readStratStat_wrap,writeContract_messages_wrap,writeContractTable_wrap
 
@@ -270,10 +271,16 @@ class qeAsyncStratProcess:
                     try:
                         d = self.stratQueue.get(block = True, timeout = 1)
                         #print(d)
-                        if d['type'] == qetype.KEY_MARKET_DATA:           
+                        if d['type'] == qetype.KEY_MARKET_DATA or d['type'] == qetype.KEY_MARKET_MULTIDATA:           
 #                             print('stratprocess market data')
                             savedInsts = {}
-                            self.updateData(d)
+                            if d['type'] == qetype.KEY_MARKET_DATA:
+                                self.updateData(d)
+                                self.updateTime(d)
+                            else:    
+                                for data in d['data']:
+                                    self.updateData(data)
+                                self.updateTime(d['data'][0])    
                             for strat in self.strats:
                                 savedInsts[strat.name] = strat.instid.copy()
                                 #if d['instid'] in strat.instid:
@@ -360,6 +367,8 @@ class qeAsyncStratProcess:
         ###need fix
         if 'ctp' in self.mduser:
                 changeCtpInstIDs(context.stratName, new)
+        elif 'stock' in self.mduser:
+                changeStockInstIDs(context.stratName, new)
         #if 'sopt' in self.mduser :
         #        changeSoptInstIDs(context.stratName, new)
 
@@ -388,12 +397,8 @@ class qeAsyncStratProcess:
             prev_date -= timedelta(days=1)
         return prev_date    
     
-    
-    
-    
-    def updateData(self,d):
+    def updateTime(self,d):
         try:
-            tempinstid = d['instid']
             self.bDataRead = True
             self.tradingday = d['data']['tradingday']
             if not getTradingDaySaved():
@@ -406,18 +411,7 @@ class qeAsyncStratProcess:
             self.curday= self.curtime.strftime('%Y-%m-%d')
             if self.lasttime:
                 self.lastday=self.lasttime.strftime('%Y-%m-%d')
-            ## add by scott
-            presett = float(d['data'].get('presett',0))
-                
-            if presett  > 0.01 and not tempinstid in self.presett:
-                self.presett.update({tempinstid:presett})
-                logger.info(f"New data on {tempinstid},presett:{self.presett[tempinstid]}")
-            self.dataslide.update({tempinstid:d['data']})
-            
-            
-            
             for strat in self.strats:
-                if tempinstid in strat.instid: # or self.recmode:
                     strat.context.bDataRead = True
                     #strat.context.dataslide.update({tempinstid : d['data']}) 
                     #print(tempinstid, context.dataslide[tempinstid]['a1_p'])
@@ -427,8 +421,6 @@ class qeAsyncStratProcess:
                     strat.context.lasttime = self.lasttime
                     strat.context.curday = self.curday
                     strat.context.lastday = self.lastday
-
-                
                     if self.recmode and not strat.posLoaded:
                         strat.posLoaded = True
                         pos,instPnl = readStratPosition_wrap(strat.name, strat.context.tradingday)
@@ -447,20 +439,7 @@ class qeAsyncStratProcess:
                         writeStratPosition_wrap(strat.name, strat.context.tradingday,strat.context.position,strat.context.instClosePnl)
                         writeContractTable_wrap(strat.name, strat.context.tradingday,strat.context.position)
                         writeStratStat_wrap(strat.name,strat.context.tradingday, strat.context.prodMaxMarg, strat.context.prodTurnover)
-                        strat.context.instsett = qeInstSett()        
-                    
-                    strat.context.current[tempinstid] = d['data']['current']
-                    if tempinstid in strat.context.lastvol:
-                        if strat.context.lastvol[tempinstid] == 0:
-                            strat.context.lastvol[tempinstid] = strat.context.dataslide[tempinstid]['volume']
-                            strat.context.curvol[tempinstid] = 0
-                        else:
-                            strat.context.curvol[tempinstid] = strat.context.dataslide[tempinstid]['volume'] - strat.context.lastvol[tempinstid]
-                            strat.context.lastvol[tempinstid] = strat.context.dataslide[tempinstid]['volume']
-                    else:
-                            strat.context.curvol[tempinstid] = strat.context.dataslide[tempinstid]['volume'] 
-                            strat.context.lastvol[tempinstid] = strat.context.dataslide[tempinstid]['volume']
-                        
+                        strat.context.instsett = qeInstSett()   
                     if strat.hedgemodel:
 
                         if len(strat.context.dataslide) == len(strat.context.instid):
@@ -476,7 +455,38 @@ class qeAsyncStratProcess:
                                 #else:    
                                 saveHedgeMarketToDB(self.user,strat.name, strat.instid_hedge, strat.hedgemodel_time, d)
                                 strat.hedgemodel_time = strat.context.timedigit
-                                       
+        except Exception as e:
+            logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
+    
+    
+    def updateData(self,d):
+        try:
+            tempinstid = d['instid']
+            ## add by scott
+            presett = float(d['data'].get('presett',0))
+                
+            if presett  > 0.01 and not tempinstid in self.presett:
+                self.presett.update({tempinstid:presett})
+                logger.info(f"New data on {tempinstid},presett:{self.presett[tempinstid]}")
+            self.dataslide.update({tempinstid:d['data']})
+            
+            
+            
+            for strat in self.strats:
+                if tempinstid in strat.instid: # or self.recmode:
+                    strat.context.current[tempinstid] = d['data']['current']
+                    if tempinstid in strat.context.lastvol:
+                        if strat.context.lastvol[tempinstid] == 0:
+                            strat.context.lastvol[tempinstid] = strat.context.dataslide[tempinstid]['volume']
+                            strat.context.curvol[tempinstid] = 0
+                        else:
+                            strat.context.curvol[tempinstid] = strat.context.dataslide[tempinstid]['volume'] - strat.context.lastvol[tempinstid]
+                            strat.context.lastvol[tempinstid] = strat.context.dataslide[tempinstid]['volume']
+                    else:
+                            strat.context.curvol[tempinstid] = strat.context.dataslide[tempinstid]['volume'] 
+                            strat.context.lastvol[tempinstid] = strat.context.dataslide[tempinstid]['volume']
+                        
+                                        
         except Exception as e:
             logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
 

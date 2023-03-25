@@ -475,7 +475,7 @@ def real_cancel_order(context, orderid):
             #for instid in context.instid:
             #    context.longpendvol[instid] = {'volume':0,'poscost':0}
             #    context.shortpendvol[instid] = {'volume':0,'poscost':0}
-            for oid, order in context.orders:
+            for oid, order in context.orders.items():
                 instid = order['instid']
                 ## set the remake count to zero
                 context.orders[oid]['autoremake'][3] = 0 

@@ -11,6 +11,7 @@ from .qetype import qetype
 from datetime import datetime,timedelta
 from .qeglobal import  is_trade_day
 from .qectpmarket_wrap import changeCtpInstIDs
+from .qestockmarket import changeStockInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 from .qeredisdb import saveHedgeMarketToDB
@@ -206,10 +207,16 @@ class qeStratProcess:
                     try:
                         d = self.stratQueue.get(block = True, timeout = 1)
                         #print(d)
-                        if d['type'] == qetype.KEY_MARKET_DATA:           
+                        if d['type'] == qetype.KEY_MARKET_DATA or d['type'] == qetype.KEY_MARKET_MULTIDATA:         
 #                             print('stratprocess market data')
                             savedInsts = strat.instid.copy();
-                            self.updateData(d,context)
+                            if d['type'] == qetype.KEY_MARKET_DATA:
+                                self.updateData(d,context)
+                                self.updateTime(d, context)
+                            elif d['type'] == qetype.KEY_MARKET_MULTIDATA:
+                                for data in d['data']:
+                                    self.updateData(data,context)
+                                self.updateTime(d['data'][0], context)
                             #self.autoOrders(d, context)
                             #self.algoTrade(d,context)
                                 #if context.runmode == 'simu':
@@ -362,6 +369,8 @@ class qeStratProcess:
         ###need fix
         if 'ctp' in self.mduser:
                 changeCtpInstIDs(self.name, new)
+        elif 'stock' in self.mduser:
+                changeStockInstIDs(self.name, new)
         #if 'sopt' in self.mduser :
         #        changeSoptInstIDs(self.name, new)
 
@@ -401,14 +410,9 @@ class qeStratProcess:
         return prev_date    
     
     
-    
-    
-    def updateData(self,d,context):
+    def updateTime(self,d,context):
         try:
-            tempinstid = d['instid']
             self.bDataRead = True
-            context.dataslide[tempinstid] = d['data']
-            #print(tempinstid, context.dataslide[tempinstid]['a1_p'])
             context.timedigit = d['data']['timedigit']
             self.tradingday = d['data']['tradingday']
             context.updateTradingday(str(self.tradingday))
@@ -441,7 +445,30 @@ class qeStratProcess:
                 writeContractTable_wrap(self.name, context.tradingday,context.position)
                 writeStratStat_wrap(self.name,context.tradingday, context.prodMaxMarg, context.prodTurnover)
                 #context.instsett = qeInstSett()        
-                
+            if self.hedgemodel:
+
+                if len(context.dataslide) == len(context.instid):
+                    self.hedgemodel_price = self.calculatemul(context)
+                    if self.hedgemodel_time == 0:             
+                        self.hedgemodel_time = context.timedigit
+                    elif context.timedigit > self.hedgemodel_time:
+                        hd ={}
+                        hd['current'] = self.hedgemodel_price
+                        hd['time'] = self.hedgemodel_time
+                        #if self.realTrade:
+                        #    saveHedgeMarketrealToDB(self.user,self.name, self.instid_hedge, self.hedgemodel_time, d) 
+                        #else:    
+                        saveHedgeMarketToDB(self.user,self.name, self.instid_hedge, self.hedgemodel_time, hd)
+                        self.hedgemodel_time = context.timedigit
+        except Exception as e:
+            logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
+ 
+    def updateData(self,d,context):
+        try:
+            tempinstid = d['instid']
+            context.dataslide[tempinstid] = d['data']
+            #print(tempinstid, context.dataslide[tempinstid]['a1_p'])
+               
             context.current[tempinstid] = d['data']['current']
         
             if tempinstid in context.lastvol:
@@ -455,21 +482,6 @@ class qeStratProcess:
                 context.curvol[tempinstid] = context.dataslide[tempinstid]['volume'] 
                 context.lastvol[tempinstid] = context.dataslide[tempinstid]['volume']
            
-            if self.hedgemodel:
-
-                if len(context.dataslide) == len(context.instid):
-                    self.hedgemodel_price = self.calculatemul(context)
-                    if self.hedgemodel_time == 0:             
-                        self.hedgemodel_time = context.timedigit
-                    elif context.timedigit > self.hedgemodel_time:
-                        d ={}
-                        d['current'] = self.hedgemodel_price
-                        d['time'] = self.hedgemodel_time
-                        #if self.realTrade:
-                        #    saveHedgeMarketrealToDB(self.user,self.name, self.instid_hedge, self.hedgemodel_time, d) 
-                        #else:    
-                        saveHedgeMarketToDB(self.user,self.name, self.instid_hedge, self.hedgemodel_time, d)
-                        self.hedgemodel_time = context.timedigit
                                        
         except Exception as e:
             logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  

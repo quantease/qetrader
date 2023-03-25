@@ -17,30 +17,12 @@ from .qestatistics import g_stat
 from .qeglobal import instSetts
 from .qeriskctl import riskControl
 import numpy as np
-import collections
-class qeDataSlide(collections.UserDict):
-    def __missing__(self, key):
-        key = str(key)
-        if not key in self.data:
-            return {"current":0,"presett":0,"preclose":0}    
-        return self.data[key]
- 
-    def __contains__(self, key):
-        return str(key) in self.data
- 
-    def __setitem__(self, key, item):
-        self.data[str(key)] = item
-    
-    def __getitem__(self, key):
-        key = str(key)
-        if not key in self.data:
-            return {"current":0,"presett":0,"preclose":0}    
-        return self.data[key]
+#import collections
 
 
 #tstrats = {}
 #instSetts = {}
-g_dataSlide = qeDataSlide()
+from .qeglobal import g_dataSlide
 feesmult = 1.0
 
 from threading import Timer
@@ -824,7 +806,9 @@ class QEsimtrader(object):
             self.cancelOrder(d)
         elif d['type'] == qetype.KEY_MARKET_DATA:
             #print('trader mdata')
-            self.update(d)
+            self.update(d,d['instid'])
+        elif d['type'] == qetype.KEY_MARKET_MULTIDATA:
+            self.update(d['data'][0],d['instid'])    
         elif d['type'] == qetype.KEY_TIMER_SIMU:
             #orderlen = len(simuaccount.orders)
             #logger.debug(f'simtrader.onTimer {orderlen}')
@@ -856,10 +840,11 @@ class QEsimtrader(object):
        
         
         
-    def update(self,d):
+    def update(self,d,instids):
         global g_dataSlide
         try:
-            g_dataSlide[d['instid']] = d['data']
+            
+            #g_dataSlide[d['instid']] = d['data']
             self.curtime = datetime.strptime(str(d['data']['timedigit'])[:14],"%Y%m%d%H%M%S")
             #if not self.mode_724 and not is_valid_trade_time(d['instid'],curtime):
                 #print("Invalid data time",curtime, d['instid'])
@@ -869,7 +854,7 @@ class QEsimtrader(object):
                     self.crossday()
                 self.curday = d['data']['tradingday']
             #print("update to matchTrade")
-            self.matchTrade(d['instid'])
+            self.matchTrade(instids)
             
             simuaccount.current_timedigit = d['data']['timedigit']
             if simuaccount.tradingDay == '':
@@ -984,18 +969,14 @@ class QEsimtrader(object):
 
     def rtnOrder(self,order):
         #global g_orders,g_order_id,mapTable
-        d = {}
-        d['type'] = qetype.KEY_ON_ORDER
-        d['status'] = order['status']
         #print('rtnOrder', order['status'])
         content = simuaccount.orders.get(order['orderid'],-1)
         if content != -1:
             #stratID = int(str(incoming_orderid)[:5])
-            d['stratName'] = order['stratName']
-            #d['orderid'] = orderid
-            d['tradevol'] = order['tradevol']
-            d['leftvol'] = order['leftvol']
-            d['cancelvol'] = order['cancelvol']
+            
+            # copy order update d
+            d = {key:value for key,value in content.items()}
+            d['type'] = qetype.KEY_ON_ORDER
             
             temp_time = order.get('timedigit',-1)
             if temp_time != -1:
@@ -1006,7 +987,7 @@ class QEsimtrader(object):
             time = str(d['timedigit'])
             d['time'] = time[:8]+' '+time[8:10]+':'+time[10:12]+':'+time[12:14]+"."+time[14:]
             order['time'] = d['time']
-            d['orderid'] = order['orderid']
+            order['timedigit'] = d['timedigit']
             
             simuaccount.orders[d['orderid']] = order
             sorder = order.copy()
@@ -1035,7 +1016,7 @@ class QEsimtrader(object):
     #     return (tempdata[-2], tempdata[-1]) 
         
 
-    def matchTrade(self,instid):
+    def matchTrade(self,instids):
         global g_dataSlide
         
         tradeprice = 0.0
@@ -1049,200 +1030,201 @@ class QEsimtrader(object):
         if len(simuaccount.orders) > 0:
             try:
                 for key,order in simuaccount.orders.items():
+                    for instid in instids:
                     #print(key, order)
-                    if order['leftvol'] > 0 and instid == order['instid']:
-#                         print('orderid '+str(order['incoming_orderid']))
-                        #instid = order['instid']
-                        #if order['status'] == qetype.KEY_STATUS_PART_TRADED:
-                        #    print("check again:",order['status'], instid)
-                        if not self.mode_724 and not is_valid_trade_time(instid,self.curtime):
-                            print("MatchTrade failed on invalid data time",self.curtime, instid)
-                            logger.info(f"MatchTrade failed on invalid data time:{self.curtime}, intid:{instid}")
-                            continue
-                        if g_dataSlide.get(instid, None) is None:
-                            logger.info(f"MatchTrade failed on g_dataslide have no data on such {instid}" )
-                            continue
-                        if g_dataSlide[instid].get('presett',0) == 0:
-                            logger.info(f"MatchTrade failed on presettle price is zero on such {instid}" )
-                            continue
-                            
-                        stratName = order['stratName']
-						 
-                        found = False
-                        if self.strats: 
-                            if self.strats['async']:
-	                            for strat in self.strats['strat']:
-	                                if strat.name == stratName:
-	                                    found = True                                   
-	                                    flippage = strat.flippage
-	                                    traderate = strat.traderate
-	                                    feesmult = strat.feesmult
-	                                    break
-	                            if not found:
-		                            flippage = 0
-		                            traderate = 1
-		                            feesmult = 1
-                            else:
-	                            if stratName in self.strats:
-		                            strat = self.strats[stratName]['strat']
-		                            flippage = strat.flippage
-		                            traderate = strat.traderate
-		                            feesmult = strat.feesmult
-	                            else:
-		                            flippage = 0
-		                            traderate = 1
-		                            feesmult = 1                            
-                        ticksize = instSetts[instid]['ticksize']
-
-                        tick = g_dataSlide[instid]
-                        #print('matchTrade volume', instid, self.instVolume,tick['volume'])
-                        opvol = tick['a1_v'] if order['direction'] > 0 else tick['b1_v']
-                        
-                        if instid in self.instVolume and tick['volume'] >= self.instVolume[instid]:
-                                curvol = tick['volume'] - self.instVolume[instid]
-                                self.instVolume[instid] = tick['volume']
-                        else:
-                            self.instVolume[instid] = tick['volume']
-                            curvol = 0
-                        
-                        curvol = max(curvol, opvol)    
-#                         logger.debug('curvol location '+str(curvol)+';')
-                        
-#                         if debug_flag:
-#                             logger.debug('tick a='+str(tick['a1_p'])+', b='+str(tick['b1_p']))
-#                             logger.debug('order left '+str(order['leftvol'])+' type '+str(order['ordertype'])+' type '+str(order['direction']))
+                        if order['leftvol'] > 0 and instid == order['instid']:
+    #                         print('orderid '+str(order['incoming_orderid']))
+                            #instid = order['instid']
+                            #if order['status'] == qetype.KEY_STATUS_PART_TRADED:
+                            #    print("check again:",order['status'], instid)
+                            if not self.mode_724 and not is_valid_trade_time(instid,self.curtime):
+                                print("MatchTrade failed on invalid data time",self.curtime, instid)
+                                logger.info(f"MatchTrade failed on invalid data time:{self.curtime}, intid:{instid}")
+                                continue
+                            if g_dataSlide.get(instid, None) is None:
+                                logger.info(f"MatchTrade failed on g_dataslide have no data on such {instid}" )
+                                continue
+                            if g_dataSlide[instid].get('presett',0) == 0:
+                                logger.info(f"MatchTrade failed on presettle price is zero on such {instid}" )
+                                continue
                                 
-                        if order['ordertype'] == 'market':
-#                             if debug_flag:
-#                                 logger.debug('going to market')
-                            if order['direction'] > 0:
-                                
-                                #tradeprice = tick['current'] if tick['current'] >= tick['a1_p'] else tick['a1_p']
-                                #trade_able_count = tick['a1_v']
-                                # waiting for next phase to address trade condition
-                                tradeprice = tick['a1_p'] + flippage *ticksize if flippage > 0 and tradeprice < tick['a1_p'] + flippage*ticksize else tick['a1_p']
-                            else:
-                                #tradeprice = tick['current'] if tick['current'] <= tick['b1_p'] else tick['b1_p']
-                                #trade_able_count = tick['b1_v']
-                                # waiting for next phase to address trade condition
-                                tradeprice = tick['b1_p'] - flippage *ticksize if flippage > 0 and tradeprice > tick['b1_p'] - flippage *ticksize else tick['b1_p']
-
-                            #tradevol = max(int(curvol * traderate), 1)       
-                            tradevol = order['leftvol']
-                            #tradevol = order['leftvol']  if order['leftvol']  < tradevol else tradevol
-#                             logger.debug('tradevol '+str(tradevol)+';')
-                        elif order['ordertype'] == 'limit':
-#                             if debug_flag:
-#                                 logger.debug('going to limit')
-                            tradeprice = order['price']
-                            if (order['direction'] > 0 and tick['current'] > order['price'] ) or(order['direction'] < 0 and tick['current'] < order['price'] ):
-                                tradevol = 0
-                                #continue
-                            elif tick['current'] == order['price']:
-                                tradevol = curvol - order['pendvol'] if curvol >= order['pendvol'] else 0
-                                order['pendvol'] -= order['pendvol'] if curvol > order['pendvol'] else curvol
-                                if tradevol > 0:
-                                    tradevol = order['leftvol']  if order['leftvol']  < tradevol else tradevol
-                            else:
-                                tradevol = max(int(curvol * traderate),1)
-                                tradevol = order['leftvol']  if order['leftvol']  < tradevol else tradevol
-                                
-                            if (order['timecond'] =='FOK' and tradevol < order['leftvol']) or (order['timecond'] =='FAK' and tradevol == 0):
-                                order['status'] = qetype.KEY_STATUS_CANCEL
-                                order['tradevol'] = 0
-                                order['cancelvol'] = order['volume']
-                                order['leftvol'] = 0
-                                order['timedigit'] = tick['timedigit']
-                                self.rtnOrder(order)
-                                tradevol = 0
-                            '''   
-                            elif (order['direction'] > 0 and tick['a1_p'] == order['price'] ) or(order['direction'] < 0 and tick['b1_p'] == order['price'] ):
-                                tempvolume = tick['a1_v'] if order['direction'] > 0 else  tick['b1_v']
-                                tradevol = order['leftvol'] if order['leftvol'] <= tempvolume else tempvolume
-                            elif (order['direction'] > 0 and tick['a1_p'] < order['price'] ) or(order['direction'] < 0 and tick['b1_p'] > order['price'] ):
-                                tradevol = order['leftvol'] # waiting for next phase to address liquidation
-                            '''    
-
-                        if tradevol > 0:
-#                             print('matchTrade tradevol')
-                            ##add closeYesterday codes
-                            #if order['action'] == 'auto':
-                            #    order['action'], tradevol = simuaccount.autoAction(instid, order['direction']>0, tradevol)
-#                             logger.debug('autoaction tradevol '+str(tradevol))
-                            closetype = order['closetype']
-                            if order['action'] == 'close':
-                                tradevol, closetype = simuaccount.checkCloseToday(instid, order['direction']<0, closetype, tradevol)
-#                                 logger.debug('checkclosetoday tradevol '+str(tradevol))
-                                if tradevol == 0:
-                                    if order['timecond'] == 'FAK' or order['timecond'] == 'FOK':
-                                        order['status'] = qetype.KEY_STATUS_CANCEL
-                                        order['tradevol'] = 0
-                                        order['cancelvol'] = order['volume']
-                                        order['leftvol'] = 0
-                                        order['timedigit'] = tick['timedigit']
-                                        self.rtnOrder(order)
-#                                     try:
-#                                         print(simuaccount.position[instid]['long'])
-#                                     except Exception as e:
-#                                         print("print account position ",e.__traceback__.tb_lineno, e ) 
-#                                     logger.debug('hit')
-                                    #logger.warning(f'matchTrade invalid closetype {closetype}')
-                                    continue
-                            blong = order['direction']>0 if order['action']=='open' else order['direction']<0   
-                            simuaccount.onTrade(instid, order['action'], blong, tradeprice, tradevol, closetype,feesmult)
-                            
-                            simuaccount.g_trade_id += 1
-                            order['tradevol'] += int(tradevol)
-                            order['leftvol'] = max(order['leftvol'] - int(tradevol),0)
-                            order['timedigit'] = tick['timedigit']
-
-                            if order['timecond'] == 'FAK':
-                                order['status'] = qetype.KEY_STATUS_PTPC if order['leftvol'] > 0 else qetype.KEY_STATUS_ALL_TRADED
-                                order['cancelvol'] = order['leftvol']
-                                order['leftvol'] = 0
-                            else:
-                                if order['leftvol'] == 0:
-                                    order['status'] = qetype.KEY_STATUS_ALL_TRADED
+                            stratName = order['stratName']
+                             
+                            found = False
+                            if self.strats: 
+                                if self.strats['async']:
+                                    for strat in self.strats['strat']:
+                                        if strat.name == stratName:
+                                            found = True                                   
+                                            flippage = strat.flippage
+                                            traderate = strat.traderate
+                                            feesmult = strat.feesmult
+                                            break
+                                    if not found:
+                                        flippage = 0
+                                        traderate = 1
+                                        feesmult = 1
                                 else:
-                                    order['status'] = qetype.KEY_STATUS_PART_TRADED
+                                    if stratName in self.strats:
+                                        strat = self.strats[stratName]['strat']
+                                        flippage = strat.flippage
+                                        traderate = strat.traderate
+                                        feesmult = strat.feesmult
+                                    else:
+                                        flippage = 0
+                                        traderate = 1
+                                        feesmult = 1                            
+                            ticksize = instSetts[instid]['ticksize']
+
+                            tick = g_dataSlide[instid]
+                            #print('matchTrade volume', instid, self.instVolume,tick['volume'])
+                            opvol = tick['a1_v'] if order['direction'] > 0 else tick['b1_v']
+                            
+                            if instid in self.instVolume and tick['volume'] >= self.instVolume[instid]:
+                                    curvol = tick['volume'] - self.instVolume[instid]
+                                    self.instVolume[instid] = tick['volume']
+                            else:
+                                self.instVolume[instid] = tick['volume']
+                                curvol = 0
+                            
+                            curvol = max(curvol, opvol)    
+    #                         logger.debug('curvol location '+str(curvol)+';')
+                            
+    #                         if debug_flag:
+    #                             logger.debug('tick a='+str(tick['a1_p'])+', b='+str(tick['b1_p']))
+    #                             logger.debug('order left '+str(order['leftvol'])+' type '+str(order['ordertype'])+' type '+str(order['direction']))
+                                    
+                            if order['ordertype'] == 'market':
+    #                             if debug_flag:
+    #                                 logger.debug('going to market')
+                                if order['direction'] > 0:
+                                    
+                                    #tradeprice = tick['current'] if tick['current'] >= tick['a1_p'] else tick['a1_p']
+                                    #trade_able_count = tick['a1_v']
+                                    # waiting for next phase to address trade condition
+                                    tradeprice = tick['a1_p'] + flippage *ticksize if flippage > 0 and tradeprice < tick['a1_p'] + flippage*ticksize else tick['a1_p']
+                                else:
+                                    #tradeprice = tick['current'] if tick['current'] <= tick['b1_p'] else tick['b1_p']
+                                    #trade_able_count = tick['b1_v']
+                                    # waiting for next phase to address trade condition
+                                    tradeprice = tick['b1_p'] - flippage *ticksize if flippage > 0 and tradeprice > tick['b1_p'] - flippage *ticksize else tick['b1_p']
+
+                                #tradevol = max(int(curvol * traderate), 1)       
+                                tradevol = order['leftvol']
+                                #tradevol = order['leftvol']  if order['leftvol']  < tradevol else tradevol
+    #                             logger.debug('tradevol '+str(tradevol)+';')
+                            elif order['ordertype'] == 'limit':
+    #                             if debug_flag:
+    #                                 logger.debug('going to limit')
+                                tradeprice = order['price']
+                                if (order['direction'] > 0 and tick['current'] > order['price'] ) or(order['direction'] < 0 and tick['current'] < order['price'] ):
+                                    tradevol = 0
+                                    #continue
+                                elif tick['current'] == order['price']:
+                                    tradevol = curvol - order['pendvol'] if curvol >= order['pendvol'] else 0
+                                    order['pendvol'] -= order['pendvol'] if curvol > order['pendvol'] else curvol
+                                    if tradevol > 0:
+                                        tradevol = order['leftvol']  if order['leftvol']  < tradevol else tradevol
+                                else:
+                                    tradevol = max(int(curvol * traderate),1)
+                                    tradevol = order['leftvol']  if order['leftvol']  < tradevol else tradevol
+                                    
+                                if (order['timecond'] =='FOK' and tradevol < order['leftvol']) or (order['timecond'] =='FAK' and tradevol == 0):
+                                    order['status'] = qetype.KEY_STATUS_CANCEL
+                                    order['tradevol'] = 0
+                                    order['cancelvol'] = order['volume']
+                                    order['leftvol'] = 0
+                                    order['timedigit'] = tick['timedigit']
+                                    self.rtnOrder(order)
+                                    tradevol = 0
+                                '''   
+                                elif (order['direction'] > 0 and tick['a1_p'] == order['price'] ) or(order['direction'] < 0 and tick['b1_p'] == order['price'] ):
+                                    tempvolume = tick['a1_v'] if order['direction'] > 0 else  tick['b1_v']
+                                    tradevol = order['leftvol'] if order['leftvol'] <= tempvolume else tempvolume
+                                elif (order['direction'] > 0 and tick['a1_p'] < order['price'] ) or(order['direction'] < 0 and tick['b1_p'] > order['price'] ):
+                                    tradevol = order['leftvol'] # waiting for next phase to address liquidation
+                                '''    
+
+                            if tradevol > 0:
+    #                             print('matchTrade tradevol')
+                                ##add closeYesterday codes
+                                #if order['action'] == 'auto':
+                                #    order['action'], tradevol = simuaccount.autoAction(instid, order['direction']>0, tradevol)
+    #                             logger.debug('autoaction tradevol '+str(tradevol))
+                                closetype = order['closetype']
+                                if order['action'] == 'close':
+                                    tradevol, closetype = simuaccount.checkCloseToday(instid, order['direction']<0, closetype, tradevol)
+    #                                 logger.debug('checkclosetoday tradevol '+str(tradevol))
+                                    if tradevol == 0:
+                                        if order['timecond'] == 'FAK' or order['timecond'] == 'FOK':
+                                            order['status'] = qetype.KEY_STATUS_CANCEL
+                                            order['tradevol'] = 0
+                                            order['cancelvol'] = order['volume']
+                                            order['leftvol'] = 0
+                                            order['timedigit'] = tick['timedigit']
+                                            self.rtnOrder(order)
+    #                                     try:
+    #                                         print(simuaccount.position[instid]['long'])
+    #                                     except Exception as e:
+    #                                         print("print account position ",e.__traceback__.tb_lineno, e ) 
+    #                                     logger.debug('hit')
+                                        #logger.warning(f'matchTrade invalid closetype {closetype}')
+                                        continue
+                                blong = order['direction']>0 if order['action']=='open' else order['direction']<0   
+                                simuaccount.onTrade(instid, order['action'], blong, tradeprice, tradevol, closetype,feesmult)
                                 
-                            trade = {}
+                                simuaccount.g_trade_id += 1
+                                order['tradevol'] += int(tradevol)
+                                order['leftvol'] = max(order['leftvol'] - int(tradevol),0)
+                                order['timedigit'] = tick['timedigit']
 
-                            trade['instid'] = instid
-                            trade['orderid'] = order['orderid']
-                            trade['stratName'] = order['stratName']
-                            trade['tradeid'] = simuaccount.g_trade_id                         
-                            trade['tradevol'] = int(tradevol)
-                            trade['tradeprice'] = tradeprice
-                            trade['timedigit'] = tick['timedigit']
-                            trade['date'] = tick['time'][:8]
-                            trade['time'] = tick['time'][9:]
-                            trade['action'] = order['action']
-                            trade['dir'] = order['direction'] 
-                            trade['closetype'] = closetype
-                            logger.info(f"OnTrade:instid {instid},orderid {trade['orderid']},price {trade['tradeprice']},\
-                                        vol {trade['tradevol']}, action {trade['action']},dir {trade['dir']}, closetype {trade['closetype']}")
-                            trade['accid'] = 0
-                            saveTradeDataToDB(self.user, self.token, simuaccount.tradingDay, trade )
+                                if order['timecond'] == 'FAK':
+                                    order['status'] = qetype.KEY_STATUS_PTPC if order['leftvol'] > 0 else qetype.KEY_STATUS_ALL_TRADED
+                                    order['cancelvol'] = order['leftvol']
+                                    order['leftvol'] = 0
+                                else:
+                                    if order['leftvol'] == 0:
+                                        order['status'] = qetype.KEY_STATUS_ALL_TRADED
+                                    else:
+                                        order['status'] = qetype.KEY_STATUS_PART_TRADED
+                                    
+                                trade = {}
 
-                            if trade['stratName'] == 'force_close':
-                                print(f"{tick['time']} Force Closed price:{trade['tradeprice']}, vol:{trade['tradevol']}, intid:{trade['instid']}, direction:{trade['dir']}, orderid: {trade['orderid']}, closetype:{trade['closetype']}")
-                                
-#                             tradedata = {}
-                                                  
-#                             tradedata['timedigit'] = tick['timedigit']
-#                             tradedata['time'] = tick['time']
-#                             tradedata['action'] = order['action']
-#                             tradedata['dir'] = order['direction']     
-#                             tradedata['tradeprice'] = tradeprice
-#                             tradedata['vol'] = int(tradevol)
-#                             tradedata['closetype'] = closetype
-#                             trade['data'] = tradedata
+                                trade['instid'] = instid
+                                trade['orderid'] = order['orderid']
+                                trade['stratName'] = order['stratName']
+                                trade['tradeid'] = simuaccount.g_trade_id                         
+                                trade['tradevol'] = int(tradevol)
+                                trade['tradeprice'] = tradeprice
+                                trade['timedigit'] = tick['timedigit']
+                                trade['date'] = tick['time'][:8]
+                                trade['time'] = tick['time'][9:]
+                                trade['action'] = order['action']
+                                trade['dir'] = order['direction'] 
+                                trade['closetype'] = closetype
+                                logger.info(f"OnTrade:instid {instid},orderid {trade['orderid']},price {trade['tradeprice']},\
+                                            vol {trade['tradevol']}, action {trade['action']},dir {trade['dir']}, closetype {trade['closetype']}")
+                                trade['accid'] = 0
+                                saveTradeDataToDB(self.user, self.token, simuaccount.tradingDay, trade )
 
-                            simuaccount.trades[simuaccount.g_trade_id] = trade
+                                if trade['stratName'] == 'force_close':
+                                    print(f"{tick['time']} Force Closed price:{trade['tradeprice']}, vol:{trade['tradevol']}, intid:{trade['instid']}, direction:{trade['dir']}, orderid: {trade['orderid']}, closetype:{trade['closetype']}")
+                                    
+    #                             tradedata = {}
+                                                      
+    #                             tradedata['timedigit'] = tick['timedigit']
+    #                             tradedata['time'] = tick['time']
+    #                             tradedata['action'] = order['action']
+    #                             tradedata['dir'] = order['direction']     
+    #                             tradedata['tradeprice'] = tradeprice
+    #                             tradedata['vol'] = int(tradevol)
+    #                             tradedata['closetype'] = closetype
+    #                             trade['data'] = tradedata
 
-                            self.rtnOrder(order)
-                            self.rtnTrade(trade)
+                                simuaccount.trades[simuaccount.g_trade_id] = trade
+
+                                self.rtnOrder(order)
+                                self.rtnTrade(trade)
 
             except Exception as e:
                 logger.error(f"matchTrade {e}",exc_info=True ) 

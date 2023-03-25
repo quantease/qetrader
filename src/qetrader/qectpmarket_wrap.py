@@ -19,6 +19,7 @@ from .qestatistics import getPrevTradingDay
 from .qeglobal import getInstTraderQueue, getClassInstIDs
 from .qeinterface import simuqueue
 from qesdk import get_valid_instID
+from .qeglobal import g_dataSlide
 '''
 以下为需要订阅行情的合约号，注意选择有效合约；
 有效连上但没有行情可能是过期合约或者不再交易时间内导致
@@ -351,9 +352,11 @@ class CFtdcMdSpi(MdApiWrapper):
         
         timedigit = int(actionDay)*1000000000 +(ctime+inc)
         timestr = (actionDay +' '+ pDepthMarketData.UpdateTime+'.'+str(pDepthMarketData.UpdateMillisec + 1000)[1:])
+        qeinst = transInstID2Context(instid, exID)
         mddata={'tradingday':self.tradingDay,\
         'time': timestr,\
         'timedigit': timedigit,\
+        'inst':qeinst,\
         'current': getValidPrice(pDepthMarketData.LastPrice),\
         'presett': getValidPrice(pDepthMarketData.PreSettlementPrice),\
         'preclose':getValidPrice(pDepthMarketData.PreClosePrice),\
@@ -374,7 +377,7 @@ class CFtdcMdSpi(MdApiWrapper):
         d = {}
         d['type'] = qetype.KEY_MARKET_DATA
 #         d['time'] = timedigit
-        d['instid'] = transInstID2Context(instid, exID)
+        d['instid'] = qeinst
         d['data'] = mddata
         #print(d)
         self.callback(d)
@@ -400,6 +403,7 @@ class CFtdcMdSpi(MdApiWrapper):
             if d['type'] == qetype.KEY_MARKET_DATA:
                 datastr = json.dumps(d['data'])
                 cd = copy.copy(d)
+                g_dataSlide.update([d])
                 if self.strats['async'] and self.recmode:
                     self.strats['queue'].put(cd)
                 elif self.stratInsts:

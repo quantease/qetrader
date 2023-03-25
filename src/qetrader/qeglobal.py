@@ -10,6 +10,7 @@ from qesdk import  get_instrument_setting
 import platform
 from datetime import datetime 
 import chinese_calendar
+import collections
 
 dbconfig = {'ip': '103.36.172.183','port': 58888, 'local':'127.0.0.1'};
 try:
@@ -19,6 +20,28 @@ except:
     pass
 
 
+class qeDataSlide(collections.UserDict):
+    def __missing__(self, key):
+        key = str(key)
+        if not key in self.data:
+            return {"current":0,"presett":0,"preclose":0}    
+        return self.data[key]
+ 
+    def __contains__(self, key):
+        return str(key) in self.data
+ 
+    def __setitem__(self, key, item):
+        self.data[str(key)] = item
+    
+    def __getitem__(self, key):
+        key = str(key)
+        if not key in self.data:
+            return {"current":0,"presett":0,"preclose":0}    
+        return self.data[key]
+    def update(self, datalist):
+        for data in datalist:
+            self.data[data['instid']] = data["data"]
+g_dataSlide = qeDataSlide()
 
 
 mutex = threading.Lock()
@@ -227,3 +250,8 @@ def getInstrumentSetting(instid):
     
 def getPlatform():
     return platform.system().lower()
+
+
+
+        
+    #print('dataSlide',dataSlide)    

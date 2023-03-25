@@ -115,7 +115,7 @@ statusMapReverse = {}
 
 #tstrats={}
 #instSetts = {}
-g_dataSlide = {}
+#g_dataSlide = {}
 feesmult = 1.0
 #tradespi = None
 #tqueue = None
