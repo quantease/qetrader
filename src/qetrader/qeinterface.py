@@ -1044,13 +1044,14 @@ def real_get_bar(context, freq, count=None):
                 df=data[instid]
                 if len(df) > 0:
                     #print(df.time)
-                    df['runtime']= pd.to_datetime(df.time, format='%Y%m%d%H%M%S',errors='ignore')
+                    df['runtime']= pd.to_datetime(df.index, format='%Y%m%d%H%M%S',errors='ignore')
                     #for i in range(len(df['time'])):
                     #    df['runtime'].loc[i]=datetime.datetime.strptime(str(df['time'].loc[i]), "%Y%m%d%H%M%S")
                     df.set_index(["runtime"], inplace=True)
                     #print(df)
                     if f=='1min':
-                        del data[instid]['time']
+                        if 'time' in data[instid]:
+                            del data[instid]['time']
                         if count and isinstance(count, int):
                             
                             data[instid]=data[instid].iloc[-count:,]

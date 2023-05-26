@@ -272,7 +272,7 @@ def getOpenCloseData(user, token, mode, freq, curstg, curinst,tradingday, start=
             context.instid = [curinst]
             context.tradingday = tradingday
             context.runmode = mode
-            print("get_bar", curinst, freq)
+            #print("get_bar", curinst, freq)
             
             result=get_bar(context,int(freq))
             if curinst in result:

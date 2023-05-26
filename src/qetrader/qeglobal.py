@@ -12,7 +12,7 @@ from datetime import datetime
 import chinese_calendar
 import collections
 
-dbconfig = {'ip': '103.36.172.183','port': 58888, 'local':'127.0.0.1'};
+dbconfig = {'ip': 'data.quantease.store','port': 58888, 'local':'127.0.0.1'};
 try:
     from .qedbconfig import dbconfig_outside
     dbconfig = {**dbconfig, **dbconfig_outside}

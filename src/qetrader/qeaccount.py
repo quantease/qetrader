@@ -111,6 +111,7 @@ class realAccountInfo:
         self.loadReady = True
 
 
+    '''
     def getPosProf(self):
         posProf = 0
         for inst in self.position.keys():
@@ -123,7 +124,8 @@ class realAccountInfo:
                 posProf += volMult * (self.position[inst]['short']['poscost'] - current) * \
                            self.position[inst]['short']['volume']
         return posProf 
-    
+    '''
+
     def getCommission(self,  action, price, vol, closetype,instid, instSetts):
         if action == 'open':
 

@@ -543,7 +543,7 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
                 markettime = True
             if ('sopt' in apiset or 'sopttest' in apiset) and sopttime and sopttime(now):
                 markettime = True
-            if 'stock' in md and checkStockTime(now):
+            if 'stock' in apiset and checkStockTime(now):
                 markettime = True
             if not markettime:    
                 print(u"市场此时没有开盘.")

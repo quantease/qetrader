@@ -10,6 +10,7 @@ import logging  # 引入logging模块
 from logging.handlers import TimedRotatingFileHandler 
 import time
 import os
+import datetime
 from .qeglobal import getExemode, getPlatform
 
 # 第一步，创建一个logger
@@ -50,6 +51,7 @@ def initBacktestLogger(printlog=True):
         logging.captureWarnings(False)
     # 第三步，定义handler的输出格式
     formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+    formatter.converter = lambda *args: datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=8))).timetuple()
     fh.setFormatter(formatter)
     # 第四步，将logger添加到handler里面
     logger.addHandler(fh)
@@ -95,6 +97,7 @@ def initLogger(userid,real=False, printlog=True):
 
     # 第三步，定义handler的输出格式
     formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+    formatter.converter = lambda *args: datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=8))).timetuple()
     fh.setFormatter(formatter)
     # 第四步，将logger添加到handler里面
     logger.addHandler(fh)
@@ -118,6 +121,7 @@ def initTableLogger():
     logging.captureWarnings(True)
     # 第三步，定义handler的输出格式
     formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+    formatter.converter = lambda *args: datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=8))).timetuple()
     fh.setFormatter(formatter)
     # 第四步，将logger添加到handler里面
     logger.addHandler(fh)

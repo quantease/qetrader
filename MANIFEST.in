@@ -1,1 +1,1 @@
-recursive-include src/qetrader *.js *.css *.html *.json
+recursive-include src/qetrader *.js *.css *.html *.json *.so *.dll

@@ -205,7 +205,7 @@ class qeCtpTrader(object):
                 try:
                     while not self.tqueue.empty():
 #                         print('.')
-                        d = self.tqueue.get(block = True, timeout = 1)
+                        d = self.tqueue.get(block=True, timeout=1)
                         self.process(d)
                     time.sleep(0.001)
                 except Exception as e:
@@ -225,6 +225,8 @@ class qeCtpTrader(object):
             self.onTrade(d)              
         elif d['type'] == qetype.KEY_ON_ORDER_ERROR:
             self.onOrderError(d)
+        elif d['type'] == qetype.KEY_ON_CANCEL_CONFIRM:
+            self.onCancelConfirm(d)    
 #         elif d['type'] == KEY_ON_TRADE_ERROR:
 #             self.onTradeError(d)
         elif d['type'] == qetype.KEY_ON_POSITION:
@@ -471,7 +473,32 @@ class qeCtpTrader(object):
             
 #         else:
 #             logger.info('rspTrade orderid is not found ')
-        return
+
+    def onCancelConfirm(self,d):
+        order = self.account.orders.get(d['orderid'],None)
+        if order:
+            d['stratName'] = order['stratName']
+            d['instid'] = order['instid']
+            #d['incoming_orderid'] = order['incoming_orderid']
+            d['status'] = qetype.KEY_STATUS_CANCEL_FAILED
+            d['direction'] = order ['direction']
+            d['offset'] = order['action']
+            d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')   
+            d['tradevol'] = order['tradevol']  
+            d['cancelvol'] = order['cancelvol']
+            d['leftvol'] = order['leftvol']
+            ## add keys            
+            d['action'] = order['action']
+            d['closetype'] = order['closetype']
+            d['accid'] = self.account.accid
+            d['timecond'] = order['timecond']
+            d['time'] = datetime.now().strftime("%H:%M:%S")
+            self.callback(d)
+            saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
+            self.account.orders[d['orderid']]['status'] = d['status']
+
+
+
     def onOrderError(self,d):
         order = self.account.orders.get(d['orderid'],None)
         if order:
@@ -554,7 +581,7 @@ class qeCtpTrader(object):
         if not self.accload:
             self.accload = True
             self.account.saveToDB()
-            print('ctp账户资金信息加载完毕',self.account.balance)
+            logger.info(f'ctp账户资金信息加载完毕 {self.account.balance}')
             self.account.setLoadReady()
         
         
@@ -570,7 +597,7 @@ class qeCtpTrader(object):
             setPositionLoaded()
             print('ctp账户持仓信息加载完毕')
             logger.info('ctp账户持仓信息加载完毕')
-            self.account.setLoadReady()
+            #self.account.setLoadReady() ## wait for account info ready
 #         self.tradespi.position = self.account.position
 #         print(self.account.position)
         return
@@ -1250,22 +1277,21 @@ class CTradeSpi(TraderApiWrapper):
             logger.info(f"OnErrRtnOrderInsert orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID},dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
         else:
             logger.error(f"OnErrRtnOrderInsert Error:{pRspInfo.ErrorID}, Msg:{pRspInfo.ErrorMsg}, orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID}, dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
-        return
+        
     def OnErrRtnOrderAction(self, pOrderAction, pRspInfo) -> None:
-        # d = {}
-        # d['type'] = KEY_ON_ORDER_ERROR     
-        # d['instid'] = pOrderAction.InstrumentID
-        # d['orderid'] = int(pOrderAction.OrderRef)
-        # d['direction_ctp'] = pOrderAction.Direction
+        d = {}
+        d['type'] = qetype.KEY_ON_CANCEL_CONFIRM    
+        d['orderid'] = int(pOrderAction.OrderRef)
+        d['status'] = qetype.KEY_STATUS_CANCELL_FAILED
         # d['volume'] = pOrderAction.VolumeTotalOriginal
-        # d['offset_ctp'] = pOrderAction.CombOffsetFlag
+        #d['offset_ctp'] = pOrderAction.CombOffsetFlag
         # d['price'] = pOrderAction.LimitPrice
-        # d['errorid'] = pRspInfo.ErrorID
-        # d['erromsg'] = pRspInfo.ErrorMsg
-        # self.tqueue.put(d)
-#         print('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
+        d['errorid'] = pRspInfo.ErrorID
+        d['erromsg'] = pRspInfo.ErrorMsg
+        self.tqueue.put(d)
+#       print('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
         logger.error('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
-        return
+        
     def OnRtnTrade(self, pTrade) -> None:
         #global tqueue
 #         logger.info("OnRtnTrade")

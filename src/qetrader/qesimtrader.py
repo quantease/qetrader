@@ -129,7 +129,8 @@ class accountInfo():
     def getPosProf(self):
         global g_dataSlide
         posProf = 0
-        for inst in self.position.keys():
+        position = self.position.copy()
+        for inst in position.keys():
             if inst in g_dataSlide:# and inst in instSetts:
                 current = g_dataSlide[inst]['current']
                 volMult = instSetts[inst]['volmult']
@@ -151,7 +152,8 @@ class accountInfo():
     def updateMargin(self):
         global g_dataSlide
         marg = 0
-        for instid in self.position.keys():
+        position = self.position.copy()
+        for instid in position.keys():
             #current = g_dataSlide[inst]['current']
             tL, yL, tS, yS = self.getPositionVol(instid)
             margL = self.getMargin(self.getPosition(instid, 'long', 'poscost'), True, tL, instid) 
@@ -540,7 +542,8 @@ class accountInfo():
             A = self.margin
             B = self.balance
             fcDict = {}
-            for instid in self.position:
+            position = self.position.copy()
+            for instid in position:
                 finished, A, B, fclist = self.calcForceClose(instid, A, B)
                 fcDict[instid] = fclist
                 if finished:

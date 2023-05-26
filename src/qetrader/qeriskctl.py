@@ -125,7 +125,7 @@ class riskControl(object):
     def __init__(self, callback):
         ## maxcancels
         self.modules = {'maxcancels':False,'daymaxacts':False, 'secmaxacts':False, 'selftrade':False}
-        self.maxcancels = 400
+        self.maxcancels = 380
         self.daycancles = 0
         self.daymaxacts = 10000
         self.maxselftrades = 4
@@ -197,6 +197,9 @@ class riskControl(object):
         if self.modules['maxcancels']:
             if self.daycancles + num > self.maxcancels:
                 return -2
+            elif self.daycancles + num >= 0.85 * self.maxcancels:
+                print('Warning: 撤单次数达到最大撤单次数的85%以上.')
+                logger.info('Warning: 撤单次数达到最大撤单次数的85%以上.')    
             self.daycancles += num 
         
         if self.modules['daymaxacts']:

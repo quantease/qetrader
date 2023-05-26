@@ -17,18 +17,21 @@ import socket
 import time
 from datetime import datetime
 from threading import Timer, Lock
-from .qelogger import logger
 from .qeglobal import g_userinfo, dbconfig
+from .qelogger import logger
 
 
 mutex = Lock()
 #client 
 num = 0
-if dbconfig['ip']=='103.36.172.183':
+if dbconfig['ip']=='data.quantease.store':
     host = dbconfig['ip']
+    avail_hosts = [dbconfig['ip'],'quantease.store']
+    cur_host_id = 0
     port = 9018
 else:
     host= '192.168.123.15'
+    avail_hosts = [host]
     port= 9080
 flag_bar_new=True
 flag_bar_all=True
@@ -75,7 +78,7 @@ def doConnect(host, port):
 
 
 def udpClient(apiset):
-    global num,flag_bar_new,flag_bar_all, market_connected
+    global num,flag_bar_new,flag_bar_all, market_connected,host,port,avail_hosts,cur_host_id
 
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
@@ -93,10 +96,9 @@ def udpClient(apiset):
             setNum(0)
             client.sendto(data_new.encode('utf-8'), (host, port))
             info_new = client.recv(1024).decode('utf-8')
-            #print(info_new)
+            #print(host,port)
             client.sendto(data_all.encode('utf-8'), (host, port))
             info_all = client.recv(1024).decode('utf-8')
-            #print(info_all)
             if info_new and len(info_new) == 9:#有info才操作
                 try:
                     info_time_new = int(info_new[-4:])
@@ -104,11 +106,11 @@ def udpClient(apiset):
                     setNum(0)
                 else:    
                     if g_userinfo.info_time_new < info_time_new:
-                        if info_time_new > 3900 and g_userinfo.info_time_new < 2400:
-                            pass
-                        else:   
-                            g_userinfo.info_time_new=info_time_new
-                    elif g_userinfo.info_time_new > 3800 and info_time_new < 2400:    
+                        #if info_time_new > 4000 and g_userinfo.info_time_new < 2400:
+                        #    pass
+                        #else:   
+                        g_userinfo.info_time_new=info_time_new
+                    elif g_userinfo.info_time_new >= 3900 and info_time_new < 3400:    
                         g_userinfo.info_time_new=info_time_new
                     
                     flag_bar_new=False
@@ -120,11 +122,11 @@ def udpClient(apiset):
                 else:  
                     #print(info_time_all,"info_time_all")
                     if g_userinfo.info_time_all < info_time_all:
-                        if info_time_all > 3900 and g_userinfo.info_time_all < 2400:
-                            pass
-                        else:   
-                            g_userinfo.info_time_all=info_time_all
-                    elif g_userinfo.info_time_all > 3800 and info_time_all < 2400:    
+                        #if info_time_all > 4000 and g_userinfo.info_time_all < 2400:
+                        #    pass
+                        #else:   
+                        g_userinfo.info_time_all=info_time_all
+                    elif g_userinfo.info_time_all > 3800 and info_time_all < 3400:    
                         g_userinfo.info_time_all=info_time_all
                             
                     flag_bar_all=False
@@ -133,8 +135,10 @@ def udpClient(apiset):
         except socket.error:
             #print("\r\nsocket error,do reconnect ")
             time.sleep(3)
+            if len(avail_hosts) > 1:
+                cur_host_id = (cur_host_id + 1) % len(avail_hosts)
+                host = avail_hosts[cur_host_id] 
             client = doConnect(host, port)
-           
         except Exception as e:
             logger.warning('\r\nother error occur: ', e)
             time.sleep(3)

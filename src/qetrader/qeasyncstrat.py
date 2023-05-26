@@ -429,11 +429,12 @@ class qeAsyncStratProcess:
                             strat.context.position, tmp = readStratPosition_wrap(strat.name, prev_date.strftime('%Y%m%d'))
                             ## Can not load closepnl from previous day
                             strat.context.instClosePnl = {}
+                            strat.context.prodMaxMarg,strat.context.prodTurnover = readStratStat_wrap(strat.name,prev_date)
                         else:
                             strat.context.position = pos
                             strat.context.instClosePnl = instPnl
+                            strat.context.prodMaxMarg,strat.context.prodTurnover = readStratStat_wrap(strat.name,strat.context.tradingday)
                         simuaccount.updateStratPostion(strat.context.position)
-                        strat.context.prodMaxMarg,strat.context.prodTurnover = readStratStat_wrap(strat.name,strat.context.tradingday)
                         ## write back to database
                         strat.context.clearExpirePosition()
                         writeStratPosition_wrap(strat.name, strat.context.tradingday,strat.context.position,strat.context.instClosePnl)

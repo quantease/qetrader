@@ -49,7 +49,7 @@ def getBarTime(minu, freq):
     
     try:
         curminu = int(minu) - 2400 if int(minu) >= 2400 else int(minu)
-        timestr = tday.strftime('%Y-%m-%d') + ' '+str(curminu)+'00'
+        timestr = tday.strftime('%Y-%m-%d') + ' '+"{:04d}".format(curminu)+'00'
         bartime = datetime.strptime(timestr, '%Y-%m-%d %H%M%S')
         if freq == 1:
             return bartime
@@ -284,7 +284,7 @@ class qeStratProcess:
                                 print(f'Error on strat.handelTrade: {e}')    
                             self.handleTrade(d,context)  
                             #print('on_Trade')
-                        elif d['type'] == qetype.KEY_ON_ORDER_ERROR:
+                        elif d['type'] == qetype.KEY_ON_ORDER_ERROR or d['type'] == qetype.KEY_ON_CANCEL_CONFIRM:
                             #print('stratprocess on order error')
                             self.handleOrder(d,context)
                         elif d['type'] == qetype.KEY_TIMER_PROCESS:

@@ -34,6 +34,7 @@ class qeEnumTypes():
     KEY_STATUS_UNKNOWN = 'unknown'
     KEY_STATUS_REJECT = 'failed'
     KEY_STATUS_PTPC = 'ptpc'
+    KEY_STATUS_CANCELL_FAILED = 'cacelfailed'
     KEY_REQ_ACCOUNT = 110
     KEY_REQ_POSITION = 111
     KEY_REQ_POSITION_DETAIL = 112
@@ -41,6 +42,7 @@ class qeEnumTypes():
     KEY_QRY_ORDER = 114
     KEY_QRY_TRADE = 115
     KEY_USER_LOGOUT = 116
+    KEY_ON_CANCEL_CONFIRM = 117
 
 qetype = qeEnumTypes()
 

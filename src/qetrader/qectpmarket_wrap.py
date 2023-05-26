@@ -56,18 +56,20 @@ def getValidPrice(price):
 def timer_callback():
     global timer, mduserspi
     logger.debug('timer callback')
-        
     now = datetime.now()
-    if checkMarketTime(now):
-        if mduserspi and len(mduserspi.subID) > 0:
+    if checkMarketTime(now) :
+        '''if mduserspi and len(mduserspi.subID) > 0:
             subID = mduserspi.subID
-            mduserspi.SubscribeMarketData([id.encode('utf-8') for id in subID])
+            mduserspi.tapi.SubscribeMarketData([id.encode('utf-8') for id in subID],len(subID))
         else:
             print("No intrumentIDs be subscribed")
-    else:
-        timer = threading.Timer(30, timer_callback)
-        timer.start()
-    
+        '''
+        if mduserspi and not mduserspi.bFirstLogin and not mduserspi.connected:
+            mduserspi.login()    
+    timer = threading.Timer(30, timer_callback)
+    timer.start()
+        
+   
     
 def checkMarketTime(now):
     global g_mode_724
@@ -167,6 +169,7 @@ class CFtdcMdSpi(MdApiWrapper):
         self.instTime = {}
         self.tradingDay = ''
         self.stratInstances = {}
+        self.bFirstLogin = True
 
     def Init(self) -> None:
         """
@@ -204,6 +207,12 @@ class CFtdcMdSpi(MdApiWrapper):
     def OnFrontConnected(self) -> None:
         print(u"ctp行情服务器连接成功")
         logger.info (u"ctp行情服务器连接成功")
+        now = datetime.now()
+        if checkMarketTime(now):
+            self.login()
+        
+        
+    def login(self):    
         loginfield = ReqUserLoginField()
         loginfield.BrokerID=self.broker
         loginfield.UserID=self.user
@@ -238,9 +247,6 @@ class CFtdcMdSpi(MdApiWrapper):
             print(u"ctp行情服务器已经断开")
             logger.info(u"ctp行情服务器已经断开")
         self.connected = False    
-        if not timer is None and not timer.finished:
-            timer.cancel()
-            timer.join()
 
     def OnHeartBeatWarning(self, nTimeLapse) -> None:
         """
@@ -259,7 +265,8 @@ class CFtdcMdSpi(MdApiWrapper):
             logger.error (f"Market Data System Login, SessionID={pRspUserLogin.SessionID},ErrorID={pRspInfo.ErrorID},ErrorMsg={pRspInfo.ErrorMsg}")
             
         self.bReady = True
-        now = datetime.now()
+        self.bFirstLogin = False
+        #now = datetime.now()
         if pRspUserLogin.TradingDay != '':
             if self.tradingDay != pRspUserLogin.TradingDay:
                 if self.tradingDay != '':
@@ -267,13 +274,10 @@ class CFtdcMdSpi(MdApiWrapper):
                 self.tradingDay = pRspUserLogin.TradingDay
         elif self.tradingDay == '':
             self.tradingDay = getLocalTradingDay(now)
-        if checkMarketTime(now):
-            if len(self.subID) >0:
-                time.sleep(1)
-                self.SubscribeMarketData([id.encode('utf-8') for id in self.subID])
-        else:
-            timer = threading.Timer(30, timer_callback)
-            timer.start()
+        #if checkMarketTime(now):
+        if len(self.subID) >0:
+            time.sleep(1)
+            self.SubscribeMarketData([id.encode('utf-8') for id in self.subID])
 
     def OnRspUserLogout(self, pUserLogout, pRspInfo, nRequestID, bIsLast) -> None:
         """
@@ -604,7 +608,7 @@ class CFtdcMdSpi(MdApiWrapper):
         pass
 
 def runQEMarketProcess(user, passwd, strats,runmode, setting_dict, mode_724=False):
-    global mduserspi, g_mode_724
+    global mduserspi, g_mode_724, timer
     evalmode = False
     if setting_dict is not None and setting_dict['api'] == 'ctptest':
         evalmode = True
@@ -630,7 +634,9 @@ def runQEMarketProcess(user, passwd, strats,runmode, setting_dict, mode_724=Fals
     g_mode_724 = mode_724
 
     pass_flag = True
-
+    timer = threading.Timer(30, timer_callback)
+    timer.start()
+    
     if setting_dict is not None:
         mduserspi.initCallback( setting_dict['investorid'],setting_dict['password'])
         mduserspi.broker = bytes(setting_dict['brokerid'],'utf-8')

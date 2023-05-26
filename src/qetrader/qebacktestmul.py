@@ -10,13 +10,12 @@ import traceback
 #import json
 # import talib
 # from talib import MA_Type
-from qesdk import get_price, get_ticks, is_valid_trade_time, is_valid_instID
-from .qeglobal import getInstrumentSetting
+from qesdk import get_price, get_ticks, is_valid_trade_time, get_instrument_setting, is_valid_instID
 import matplotlib.pyplot as plt
 from .qelogger import initBacktestLogger, logger
 #from .qeglobal import getValidInstIDs
 import datetime
-from .qeinterface import qeStratBase, force_close
+from .qeinterface import qeStratBase, force_close, make_order
 from .qeredisdb import saveBackTestData, saveBackTestReport,saveBackTestList, saveBackTestSetting,saveBackTestDataDynamic,clearBackTestData
 from .qestratmarket_wrap import save_trades_wrap, writeStratStat_wrap,  writeStratPosition_wrap,update_stratCard_wrap,writeStratPnl_wrap,clearStratTrades_wrap,readStratPosition_wrap,update_stratCard_append_wrap,readFullStratStat_wrap,clearStratStat_wrap,clearStratPosition_wrap
 from dateutil.relativedelta import relativedelta
@@ -238,7 +237,7 @@ class qeContextBase:
                 self.curvol[instid[i]] = 0
                 self.position[instid[i]] = {'long': {'volume': 0, 'poscost': 0, 'yesvol': 0},
                                             'short': {'volume': 0, 'poscost': 0, 'yesvol': 0}}
-                self.instsett[instid[i]] = getInstrumentSetting(instid[i].replace('.', '_').upper())
+                self.instsett[instid[i]] = get_instrument_setting(instid[i].upper())
                 #self.longpendvol[instid[i]] = {'volume':0,'poscost':0}
                 #self.shortpendvol[instid[i]] = {'volume':0,'poscost':0}
                 self.openPrice[instid[i]] = 0
@@ -297,6 +296,8 @@ class qeContextBase:
             if self.datamode == 'daily':
                 for inst in self.instid:
                     self.dailySettle[inst] = self.getDataSlide(inst,'settle')
+                    if self.dailySettle[inst] == 0:
+                        self.dailySettle[inst] = self.getDataSlide(inst,'close')
             self.updateMarg()
             self.posProf = self.getPosProf()
             lastcap = self.stat.balance
@@ -329,10 +330,16 @@ class qeContextBase:
                 curdate = pd.to_datetime(curday)
                 if inst in self.instid and curdate in list(self.dailySettle[inst].index):
                         settle = self.dailySettle[inst].loc[pd.to_datetime(curday),'settle'] 
+                        if settle == 0:
+                            settle = self.dailySettle[inst].loc[pd.to_datetime(curday),'close']
                 else:
                     settle = self.dailySettle[inst].loc[self.dailySettle[inst].index[-1],'settle']
+                    if settle == 0:
+                        settle = self.dailySettle[inst].loc[self.dailySettle[inst].index[-1],'close']
             else:
                 settle = self.getDataSlide(inst, 'settle')
+                if settle == 0:
+                    settle = self.getDataSlide(inst, 'close')
         except:
             print('Error on settle price', curday, inst, self.dailySettle[inst])
             settle = 0
@@ -589,6 +596,8 @@ class qeContextBase:
             result = {}
             closeProf = 0
             tradevol = 0
+            if not instid in self.position:
+                return result
             prod = getProd(instid)
             if direction > 0:
                 #if action == 'open':
@@ -706,14 +715,14 @@ class qeContextBase:
             volMult = self.instsett[instid]['volmult']
             # print(volMult)
             current = self.getCurrent(instid) if not settle else self.getSettlePrice(instid)
-
-            if self.position[instid]['long']['volume'] != 0:
-                # position['long']['posProf'] = volMult * (current - position['long']['poscost']) * position['long']['volume']
-                posProf += volMult * (current - self.position[instid]['long']['poscost']) * \
-                           self.position[instid]['long']['volume']
-            if self.position[instid]['short']['volume'] != 0:
-                posProf += volMult * (self.position[instid]['short']['poscost'] - current) * \
-                           self.position[instid]['short']['volume']
+            if instid in self.position:
+                if self.position[instid]['long']['volume'] != 0:
+                    # position['long']['posProf'] = volMult * (current - position['long']['poscost']) * position['long']['volume']
+                    posProf += volMult * (current - self.position[instid]['long']['poscost']) * \
+                               self.position[instid]['long']['volume']
+                if self.position[instid]['short']['volume'] != 0:
+                    posProf += volMult * (self.position[instid]['short']['poscost'] - current) * \
+                               self.position[instid]['short']['volume']
                 # posProf += position['short']['posProf']
         return posProf
 
@@ -975,7 +984,6 @@ class qeContextBase:
 
     def isTradeTime(self):
         return is_valid_trade_time(self.instid[0], self.curtime)  # all the contracts trades on the same time
-
 
 
 
@@ -1595,10 +1603,14 @@ def historyDataBackTest(user, datamode, instids, start_date, end_date, strat, fe
 
 def getAddress(user, rfrate):
     # webaddress = socket.gethostbyname(socket.gethostname())
-    ip = '127.0.0.1:5000'
-    json_data = read_sysconfig()
-    if json_data:
-        ip = f"{json_data['webpage']['host']}:{json_data['webpage']['port']}"
+    ip = '127.0.0.1:5814'
+    try:
+        with open('/srv/jupyterhub/webhost', 'r') as f:
+            ip = f.read()
+            if ip[-1] == '\n' or ip[-1] == '\t' or ip[-1] == '\r':
+                ip = ip[:-1]
+    except Exception:
+        pass
 
     address="http://" + str(ip) + "/backtest?user=" + str(user) + "&rfrate=" + str(rfrate)
 
@@ -1719,7 +1731,7 @@ def runBacktest(user, df,datamode, instids, strat, record_strat=False,exdata=Non
         dstart = df.index[0]
         dend = df.index[-1] + pd.Timedelta(days=1)
         for inst in context.instid:
-            context.dailySettle[inst] = get_price(inst, dstart,dend,'daily',fields=['settle'])
+            context.dailySettle[inst] = get_price(inst, dstart,dend,'daily',fields=['settle','close'])
     
     if printlog:
         print("total", len(df), 'records')
@@ -2240,7 +2252,7 @@ def dynamicBacktest(user, datamode, instids, start_date, end_date, strat, printl
     if context.datamode != 'daily':
         ## Save daily settle price
         for inst in context.instid:
-            context.dailySettle[inst] = get_price(inst, curstart,curend + pd.Timedelta(days=1),'daily',fields=['settle'])
+            context.dailySettle[inst] = get_price(inst, curstart,curend + pd.Timedelta(days=1),'daily',fields=['settle','close','presett'])
     i = 0
     adds = []
     datarep = {}
@@ -2259,6 +2271,8 @@ def dynamicBacktest(user, datamode, instids, start_date, end_date, strat, printl
         
         if isinstance(strat.instid,str):
            strat.instid =[strat.instid]
+        
+        posChecked = False
    
         while curend < end_date or i < len(df) - 1:
             if not 'time' in df.columns:
@@ -2305,6 +2319,39 @@ def dynamicBacktest(user, datamode, instids, start_date, end_date, strat, printl
                         context.curvol[inst] = context.dataslide[inst]['volume']  # minute中就是成交量
                 context.updateTime(curtime)
                 context.tradingday = context.curday if datamode == 'daily' else context.account.tradingDay
+
+                if strat._append_mode and not posChecked:
+                    removes = []
+                    for p in context.position:
+                        if not p in strat.instid:
+                            lvol = context.getPosition(p,'long','volume')
+                            svol = context.getPosition(p,'short','volume')
+                            if lvol > 0:
+                                make_order(context, p, -1, context.getCurrent(p), lvol, 'market','close')
+                            if svol > 0:
+                                make_order(context, p, 1, context.getCurrent(p), svol, 'market','close')
+                            [inst,exid] = p.split('.')
+                            instdate = '20'+inst[-4:]
+                            if start_date.strftime('%Y%m') > instdate:
+                                removes.append(p)
+                        else:
+                            lvol = context.getPosition(p,'long','volume')
+                            svol = context.getPosition(p,'short','volume')
+                            presettval = context.dailySettle[p]['presett'].iloc[0]
+                            volmult = context.instsett[p]['volmult']
+                            #print('posChecked',context.getCurrent(p),lvol,svol,presettval)
+                            if lvol  > 0:
+                                context.presettleL[p] = presettval
+                                context.stat.lastPosProf = (presettval - context.getPosition(p,'long','poscost'))*lvol*volmult
+                            if svol > 0:
+                                context.presettleS[p] = presettval  
+                                context.stat.lastPosProf = (context.getPosition(p,'short','poscost') - presettval)*svol*volmult
+                    for p in removes:
+                        context.position.pop(p)
+
+                    
+                    posChecked = True                 
+
 
                 if True : #datamode == 'daily' or context.isTradeTime():  # 判断是否是交易时间
                     savedinstid = strat.instid.copy()
@@ -2417,7 +2464,7 @@ def dynamicBacktest(user, datamode, instids, start_date, end_date, strat, printl
                                 #print('after', len(df))
                                 if context.datamode != 'daily':
                                     for inst in context.instid:
-                                        context.dailySettle[inst] = get_price(inst, curstart,curend + pd.Timedelta(days=1),'daily',fields=['settle'])
+                                        context.dailySettle[inst] = get_price(inst, curstart,curend + pd.Timedelta(days=1),'daily',fields=['settle','close'])
                                
                                 for inst in adds:
                                     colname = [x for x in df.columns if inst in x.split('-')]
@@ -2450,7 +2497,7 @@ def dynamicBacktest(user, datamode, instids, start_date, end_date, strat, printl
                     assert len(df) > 0, f'新合约取不到数据 {strat.instid}'
                     if context.datamode != 'daily':
                         for inst in context.instid:
-                            context.dailySettle[inst] = get_price(inst, curstart,curend + pd.Timedelta(days=1),'daily',fields=['settle'])
+                            context.dailySettle[inst] = get_price(inst, curstart,curend + pd.Timedelta(days=1),'daily',fields=['settle','close'])
                     i = 0
                     if len(context.trades) > 0:
                                 ### save data and trade report

@@ -14,7 +14,7 @@ import pickle
 import zlib
 from .qeglobal import getExemode, dbconfig
 
-remote_db = {'ip':'103.36.172.183', 'port': 9019}
+remote_db = {'ip':'data.quantease.store', 'port': 9019}
 local_db = {'ip':'192.168.123.188', 'port':58002}
 
 dbip =  remote_db['ip'] if dbconfig['ip'] == remote_db['ip'] else local_db['ip']
