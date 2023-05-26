@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qetrader"
-version = "1.0.15"
+version = "1.0.16"
 authors = [
   { name="Scott Zhang", email="scott2011@qq.com" },
 ]
