@@ -156,7 +156,7 @@ class qeCtpTrader(object):
 #         self.authcode = CTP_AuthCode
 #         self.address = FrontAddr
         self.getAsk = False
-        self.ordersload = False
+        self.ordersload = True
         self.tradesload = False
         self.classname = ''
         self.accload = False
@@ -165,7 +165,7 @@ class qeCtpTrader(object):
         self.strats = None
         self.lastts = 0 
         self.brokername = ''
-        return
+        self.protectTime = datetime.now()
     def connect(self):
         return
     def callTimer(self):     
@@ -234,6 +234,10 @@ class qeCtpTrader(object):
         elif d['type'] == qetype.KEY_ON_ACCOUNT:
             self.onAccount(d)
         elif d['type'] == qetype.KEY_TIMER:
+            #if not self.accload  or not self.posload or not self.ordersload or not self.tradesload:
+                #self.getStatistic()
+            #if datetime.now() > self.protectTime:
+            #    self.tradespi.qryLock = False
             self.getStatistic()
             #self.heartBeat(True)
 #         elif d['type'] == KEY_ON_INSTRUMENT:
@@ -244,6 +248,8 @@ class qeCtpTrader(object):
             self.tradespi.logout()
         else:
             logger.error('incorrect type given as type is '+str(d['type']))
+        
+        self.protectTime = datetime.now()+timedelta(seconds=2)
         return
     def callback(self,d):
         #global tstrats
@@ -336,29 +342,36 @@ class qeCtpTrader(object):
         isMarketTime = checkMarketTime(temptime)
         isNoon = False #(temptime.hour == 11 and temptime.minute > 30) or (temptime.hour ==12)
         timeValid = g_mode_724 or (isMarketTime and not isNoon)
-        
-        if  self.account.stgtable_load and not self.tradespi.qryLock and self.tradespi.connectionStatus and timeValid :
-            #if  not self.posload:
-            #    self.tradespi.reqPosition()
-                #self.posload = True
+        #print(self.account.stgtable_load, self.tradespi.qryLock, self.tradespi.connectionStatus, timeValid )
+        try:
+            if  self.account.stgtable_load and not self.tradespi.qryLock and self.tradespi.connectionStatus and timeValid :
+                #if  not self.posload:
+                #    self.tradespi.reqPosition()
+                    #self.posload = True
+                    
+                #if not self.ordersload:
+                #    self.tradespi.reqOrder()
+                #    self.ordersload = True
                 
-            if not self.ordersload:
-                self.tradespi.reqOrder()
-                self.ordersload = True
-            
-            elif not self.tradesload:
-                self.tradespi.reqTrade()
-                self.tradesload = True
-            
-            elif not self.accload or not self.posload or curts - self.lastts > 1 :
-                self.lastts = curts
-                if self.getAsk == True :
-                    self.getAsk = False
-                    self.tradespi.reqAccount()
-                elif self.getAsk == False :
-                    self.getAsk = True
-                    self.tradespi.reqPosition()
-        
+                if not self.tradesload:
+                    self.tradespi.reqTrade()
+                    self.tradesload = True
+                
+                elif not self.accload or not self.posload or curts - self.lastts > 1 :
+                    self.lastts = curts
+                    if self.getAsk == True :
+                        self.getAsk = False
+                        ret = self.tradespi.reqAccount()
+                        assert ret==0, f'reqAccount failed {ret}'
+                    elif self.getAsk == False :
+                        self.getAsk = True
+                        ret = self.tradespi.reqPosition()
+                        assert ret==0, f'reqPosition failed {ret}'
+
+        except Exception as e:
+            logger.error('getStatistic '+str(e))
+            print("getStatistic error: ",e)
+
         if self.accload and self.posload and self.tradesload and self.ordersload:
             Timer_interval = 2
         
@@ -421,6 +434,7 @@ class qeCtpTrader(object):
             self.account.orders[d['orderid']] = d
             if d['from'] == 'RtnOrder':
                 self.callback(d)
+                self.account.saveOrders()
 #             self.account.saveToDB()
         else:
             logger.info('rspOrder orderid is not found '+str(d['orderid']))
@@ -487,6 +501,11 @@ class qeCtpTrader(object):
             d['tradevol'] = order['tradevol']  
             d['cancelvol'] = order['cancelvol']
             d['leftvol'] = order['leftvol']
+
+            if d['errorid'] == 26: ## 全部已成交
+                d['tradevol'] = order['volume']
+                d['leftvol'] = 0
+                d['cancelvol'] = order['cancelvol']
             ## add keys            
             d['action'] = order['action']
             d['closetype'] = order['closetype']
@@ -548,7 +567,7 @@ class qeCtpTrader(object):
                 self.crossday()
             self.tradespi.curday = d['data']['tradingday']
         self.account.current_timedigit = d['data']['timedigit']
-        self.account.tradingDay = d['data']['tradingday']
+        self.account.setTradingDay( d['data']['tradingday'])
         if self.tradespi.lasttime == 0:
             self.tradespi.lasttime = d['data']['timedigit']
         elif abs(d['data']['timedigit'] - self.tradespi.lasttime) > 2500:
@@ -590,6 +609,7 @@ class qeCtpTrader(object):
 #         for instid in instid_list:
 #             temp_instid = 1
         self.account.position = copy.copy(d['data'])
+        #print('ctp update position',self.account.position.get('AU2312.SFE',{}))
         self.account.turnover += float(d['turnover'])
         if not self.posload:
             self.posload = True
@@ -688,8 +708,22 @@ class CTradeSpi(TraderApiWrapper):
         self.waitAuth = False
         self.qryLock = False
         self.lastTDay = getPreviousTradingDay()
+        self.locktimer = None
         logger.info('traderspi is ready')
     
+
+    def lockTimer(self):
+        self.qryLock = False
+        #logger.info("Unlock on timer expired")
+
+
+    def lockStart(self):
+        self.qryLock = True
+        if self.locktimer and not self.locktimer.finished:
+            self.locktimer.cancel()
+        self.locktimer = Timer(3, self.lockTimer)
+        self.locktimer.start()
+
     def SubscribePrivateTopic(self, nResumeType: int) -> None:
         """
         订阅私有流。
@@ -805,7 +839,6 @@ class CTradeSpi(TraderApiWrapper):
             logger.warning('reqQryTrade error='+str(ret))
         else:
             self.qryLock = True
-            
         
         
     def reqOrder(self):
@@ -829,7 +862,7 @@ class CTradeSpi(TraderApiWrapper):
         if ret != 0:
             logger.warning('reqInstrumentCommission error='+str(ret))
         else:
-            self.qryLock = True
+            self.lockStart()
 
     
     def authenticate(self):
@@ -965,6 +998,7 @@ class CTradeSpi(TraderApiWrapper):
         try:
             self.reqID += 1
             #logger.info("reqAccount")
+            #print("reqAccount")
             reqfield=QryTradingAccountField(BizType='1')
             reqfield.InvestorID = self.investor
             reqfield.BrokerID = self.broker
@@ -975,14 +1009,16 @@ class CTradeSpi(TraderApiWrapper):
             if ret != 0:
                 logger.warning('reqQryTradingAccount error='+str(ret))
             else:
-                self.qryLock = True
+                self.lockStart()
+            return ret    
         except Exception as e:
             print( e.__traceback__.tb_lineno, e)
             logger.error(e)
-        return
+            return -10
     def reqPosition(self):
         try:
             #logger.info("reqPosition")
+            #print("reqPosition")
             self.reqID += 1
             reqfield=QryInvestorPositionField()
             reqfield.InvestorID = self.investor
@@ -991,10 +1027,11 @@ class CTradeSpi(TraderApiWrapper):
             if ret != 0:
                 logger.warning('reqPosition error='+str(ret))
             else:
-                self.qryLock = True
+                self.lockStart()
+            return ret    
         except Exception as e:
             logger.error(e)
-        return 
+            return -10 
         
     def OnFrontConnected(self) -> None:
         print("交易服务器连接成功。")
@@ -1282,7 +1319,7 @@ class CTradeSpi(TraderApiWrapper):
         d = {}
         d['type'] = qetype.KEY_ON_CANCEL_CONFIRM    
         d['orderid'] = int(pOrderAction.OrderRef)
-        d['status'] = qetype.KEY_STATUS_CANCELL_FAILED
+        d['status'] = qetype.KEY_STATUS_CANCEL_FAILED
         # d['volume'] = pOrderAction.VolumeTotalOriginal
         #d['offset_ctp'] = pOrderAction.CombOffsetFlag
         # d['price'] = pOrderAction.LimitPrice
@@ -1343,6 +1380,7 @@ class CTradeSpi(TraderApiWrapper):
                     self.connectionStatus = True
                     time.sleep(1)
                 self.qryLock = False
+                #print('qry account done, qryLock = False')
                 
         except Exception as e:
             logger.error(e)
@@ -1391,6 +1429,7 @@ class CTradeSpi(TraderApiWrapper):
                     # else:
                     #     frozen += pInvestorPosition.ShortFrozen     
                     # 查询回报结束
+                    self.posDict[instid] = pos
             if bIsLast:
                 d = {}
                 d['type'] = qetype.KEY_ON_POSITION
@@ -1399,6 +1438,7 @@ class CTradeSpi(TraderApiWrapper):
 #                 print(self.posDict.keys())
                 self.posDict.clear()
                 self.qryLock = False
+                #print('qry position done, qryLock = False')
                 self.turnover = 0
                 if not self.connectionStatus:
                     time.sleep(1)
@@ -2485,7 +2525,7 @@ def runQERealTraderProcess(user,account, classname,strats,traderqueue,user_setti
     ctptrader.evalmode = evalmode
     if evalmode:
         tday = getLocalTradingDay()
-        ctptrader.account.tradingDay = tday
+        ctptrader.account.setTradingDay(tday)
         ctptrader.account.loadFromDB(tday)
     ctptrader.callTimer()
     ctptrader.TraderProcess()

@@ -51,7 +51,7 @@ class HtsTrader(object):
         if self.account.tradingDay == '':
             self.account.loadFromDB(self.tradingday)
         self.account.current_timedigit = self.timedigit
-        self.account.tradingDay = self.tradingday        
+        self.account.setTradingDay ( self.tradingday  )      
         
         if self.tradingday != self.curday:
             if self.curday != '':

@@ -353,17 +353,28 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
                 closevol = [min(volume, tvol - yesvol), 0]
             
             ordernum = 2 if closevol[0] != 0 and closevol[1] != 0 else 1
-            if ordertype == 'limit':
-                rc = context.accounts[accid].riskctl.make_order(context, ordernum, instid, price, direction)
+            if ordernum == 1:
+                rc = context.accounts[accid].riskctl.make_order(context, volume, instid, price, direction)
+                if rc < 0:
+                    logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
+                    return rc,[]
             else:    
-                rc = context.accounts[accid].riskctl.make_order(context, ordernum)
+                rc = context.accounts[accid].riskctl.make_order(context, closevol[0], instid, price, direction)
+                if rc < 0:
+                    logger.warning(f"风控模块阻止下单平今: error code {rc} on {instid} {action} {direction}")
+                    return rc,[]
             #rc = context.accounts[accid].riskctl.make_order(context, ordernum)
-            if rc < 0:
-                logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
-                return rc,[]
-
+            
+            success = 0
+            rc = 0
             for i in range(len(closevol)):
                 if closevol[i] > 0:
+                    rc = context.accounts[accid].riskctl.make_order(context, closevol[i], instid, price, direction)
+                    if rc < 0:
+                        ctstr = '平今' if i == 0 else '平昨'
+                        logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction} {ctstr} {closevol[i]}")
+                        continue
+                    success += 1
                     context.orderid = g_stat.getNewOrderID()
                     closetype = 'closetoday' if i ==0 else 'closeyesterday'
                     temporder = {'instid': instid,
@@ -392,11 +403,10 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
                     temporder['orderid'] = context.orderid
                     orderids.append(context.orderid)
                     traderqueue.put(temporder)
+            if success == 0:
+                return rc, []
         else:            
-            if ordertype == 'limit':
-                rc = context.accounts[accid].riskctl.make_order(context, 1, instid, price, direction)
-            else:    
-                rc = context.accounts[accid].riskctl.make_order(context, 1)
+            rc = context.accounts[accid].riskctl.make_order(context, volume, instid, price, direction)
             #rc = context.account.riskctl.make_order(context)
             if rc < 0:
                 logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
@@ -455,59 +465,47 @@ def real_cancel_order(context, orderid):
     try:
         ret = -1
         if orderid == 0:
-            totals = {}
+            #totals = {}
             totalnum = 0
-            for oid in context.orders:
+            ret = 0
+            context.frozenMarg = 0
+            accids = set()
+            for oid, order in context.orders.items():
+                #for oid in context.orders:
                 if context.orders[oid]['leftvol'] > 0:
                     accid = context.orders[oid]['accid']
+                    instid = order['instid']
                     totalnum += 1
-                    if not accid in totals:
-                        totals[accid] = 1
+                    rc = context.accounts[accid].riskctl.cancel_order(context, oid)
+                    if rc < 0:
+                        ret += rc
+                        dirstr = 'long' if context.orders[oid]['direction']>0 else 'short'
+                        instid = context.orders[oid]['instid']
+                        price = context.orders[oid]['price']
+                        logger.warning(f'风控模块阻止撤单: {oid} {instid}')
+                        fmarg = context.getMargin(price, dirstr, context.orders[oid]['leftvol'], instid)
+                        context.frozenMarg += fmarg
+                        continue
                     else:
-                        totals[accid] += 1
-                        
-            for accid in totals:
-                rc = context.accounts[accid].riskctl.cancel_order(context, totals[accid])
-                if rc  < 0:
-                    logger.warning(f'风控模块阻止撤单: error code:{rc}')
-                    return rc
-            context.frozenMarg = 0
-            #for instid in context.instid:
-            #    context.longpendvol[instid] = {'volume':0,'poscost':0}
-            #    context.shortpendvol[instid] = {'volume':0,'poscost':0}
-            for oid, order in context.orders.items():
-                instid = order['instid']
-                ## set the remake count to zero
-                context.orders[oid]['autoremake'][3] = 0 
-
-                if instid[-3:] == 'CCF':
-                    ## CCFX cancel commission
-                    context.stat.dayfees += 1
-                    context.stat.totalfees += 1
-            ret = 0
-            context.stat.daycancels += totalnum
-
-            #     d = {}
-            #     d['type'] = KEY_CANCEL_ORDER
-            #     d['stratName'] = context.stratName
-            #     d['orderid'] = order['orderid']
-            #     traderqueue.put(d)
+                        context.orders[oid]['autoremake'][3] = 0 
+                        accids.add(accid)
+                        if instid[-3:] == 'CCF':
+                            ## CCFX cancel commission
+                            context.stat.dayfees += 1
+                            context.stat.totalfees += 1
+                        ## set the remake count to zero
             print(context.curtime, 'cancel all order')
             logger.info('cancel all order')
             context.stat.avail = context.stat.balance - context.marg - context.frozenMarg
-                # context.Cancels[context.curtime] = [orderid, context.stat.daycancels]
-                # print(context.Cancels[context.curtime])
             temporder = {}
             temporder['type'] = qetype.KEY_CANCEL_ORDER
             temporder['stratName'] = context.stratName
             temporder['orderid'] = orderid
-            if context.runmode =='real':
-                for accid in totals:
-                    if totals[accid] > 0:
-                        getAccidTraderQueue(accid).put(temporder)
-            else:
-                simuqueue.put(temporder)
-            # return ret
+            for accid in accids:
+                if context.runmode == 'real':
+                            getAccidTraderQueue(accid).put(temporder)
+                else:
+                            simuqueue.put(temporder)
 
         else:
             
@@ -515,7 +513,7 @@ def real_cancel_order(context, orderid):
             if orderid in context.orders.keys():
                 instid = context.orders[orderid]['instid']
                 accid = context.orders[orderid]['accid']
-                rc = context.accounts[accid].riskctl.cancel_order(context, 1)
+                rc = context.accounts[accid].riskctl.cancel_order(context, orderid)
                 if rc  < 0:
                     logger.warning(f'风控模块阻止撤单 {orderid}: error code:{rc}')
                     return rc
@@ -735,7 +733,7 @@ def test_make_order(context, instid, direction, price, volume, ordertype="limit"
                 #else:
                 #    context.frozenVol[instid] = {"long":0, "short":volume}
 
-                   
+
                     
         if errorid == 0:
             if status == 'committed' and action == 'open':

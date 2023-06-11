@@ -6,7 +6,7 @@ Created on Wed Mar 30 15:24:34 2022
 """
 import threading
 from multiprocessing import Queue
-from qesdk import  get_instrument_setting
+from qesdk import  get_instrument_setting, get_risk_control_parameter
 import platform
 from datetime import datetime 
 import chinese_calendar
@@ -247,7 +247,10 @@ def getInstrumentSetting(instid):
     else:
         return get_instrument_setting(instid, False)
     
-    
+
+def get_riskctl_paras():
+    return get_risk_control_parameter()
+
 def getPlatform():
     return platform.system().lower()
 

@@ -11,7 +11,6 @@ from .qetype import qetype
 from datetime import datetime,timedelta
 from .qeglobal import  is_trade_day
 from .qectpmarket_wrap import changeCtpInstIDs
-from .qestockmarket import changeStockInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 from .qeredisdb import saveHedgeMarketToDB
@@ -32,7 +31,10 @@ from .qeglobal import g_userinfo, qeInstSett, instSetts, setTradingDaySaved, get
 import random
 from .qestratmarket_wrap import readStratPosition_wrap, writeStratPosition_wrap,writeStratStat_wrap,writeStratTrade_wrap
 from .qestratmarket_wrap import readStratStat_wrap,writeContract_messages_wrap,writeContractTable_wrap
-
+try:
+    from .qestockmarket import changeStockInstIDs
+except:
+    changeStockInstIDs = lambda x,y:None
 
 def formhedgeInstid(instid):
     for i in range(len(instid)):

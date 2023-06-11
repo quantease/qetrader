@@ -8,7 +8,6 @@ Created on Wed Nov  3 11:30:36 2021
 from multiprocessing.dummy import Pool
 from multiprocessing import Queue, cpu_count
 from .qectpmarket_wrap import runQEMarketProcess,  checkMarketTime
-from .qestockmarket import runStockMarketProcess, checkStockTime
 #from .qectptrader import runQERealTraderProcess
 from .qectptrader_wrap import runQERealTraderProcess
 from .qesimtrader import  runQETraderProcess #, getCurTradingDay
@@ -24,7 +23,11 @@ from .qeredisdb import savePidToDB,saveStrategyfreqToDB,initMyredis
 from .qeglobal import  getAccidTraderQueue, setClassAccID
 from .qesysconf import read_sysconfig
 #from .qecsvorder import g_csvorders
-
+try:
+    from .qestockmarket import runStockMarketProcess, checkStockTime
+except:
+    checkStockTime =lambda x: False
+    runStockMarketProcess = lambda x1,x2,x3,x4: None
 
 try:
     from codeconfig import getSoptFuncs
@@ -465,6 +468,7 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
     evalmode = False
     for j in range(len(user_setting)):
         sett = user_setting[j]
+        
         brokerinfo = get_broker_info(sett['broker'])
         if not 'broker' in sett or brokerinfo is None:
             print("检查user_setting的'broker'不合法")
@@ -498,7 +502,7 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
         #    return
         else:
             classset.add(sett['class'])
-            accounts.append(realAccountInfo(accid=j))
+            accounts.append(realAccountInfo(user=user, token=user_setting[j]['investorid'],accid=j))
             setClassAccID(sett['class'], j)
         apiset.add(sett['api'])
         if sett['api'].find('test') > 0:

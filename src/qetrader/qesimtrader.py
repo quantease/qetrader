@@ -45,7 +45,7 @@ def getCurTradingDay():
 
 
 class accountInfo():
-    def __init__(self):
+    def __init__(self,user='unknown',token=''):
         self.balance = 10000000
         self.avail = self.balance
         self.margin = 0
@@ -72,10 +72,10 @@ class accountInfo():
         self.turnover = 0
         self.current_timedigit = 0
         self.tradingDay = ""
-        self.user = "unknown"
-        self.token = ""
+        self.user = user
+        self.token = token
         self.curtime = datetime.now()
-        self.riskctl = riskControl(self.riskctlCall)
+        self.riskctl = riskControl(self.riskctlCall,user=user,token=token)
         self.loadReady = False
         self.loadPosition = True
         self.stratCross = {}
@@ -103,7 +103,10 @@ class accountInfo():
             self.position[inst]['long']['yesvol'] = self.position[inst]['long']['volume']
             self.position[inst]['short']['yesvol'] = self.position[inst]['short']['volume']
         self.checkforceclose()
-        
+    def setTradingDay(self, tradingDay):
+        self.tradingDay = tradingDay
+        self.riskctl.setTradingDay(tradingDay)
+    
     def setLoadReady(self):
         self.loadReady = True
         
@@ -249,7 +252,6 @@ class accountInfo():
         except Exception as e:
             logger.error(f"account.readAndSetDB error {e}",exc_info=True ) 
           
-            
     
     def saveToDB(self):
         d = {}
@@ -727,6 +729,7 @@ class QEsimtrader(object):
                 simuaccount.orders[oid]['leftvol'] = 0
         g_stat.loadFromDBSimu(int(tradingDay))
         simuaccount.setLoadReady()
+        riskctl.load(tradingDay)
     
     def sendForceCloseOrder(self, instid, direction, price, volume, ordertype="limit", action="open", closetype='auto'):
         now = datetime.now()
@@ -863,7 +866,7 @@ class QEsimtrader(object):
             if simuaccount.tradingDay == '':
                 self.loadFromDB(d['data']['tradingday'])
             
-            simuaccount.tradingDay = d['data']['tradingday']
+            simuaccount.setTradingDay (d['data']['tradingday'])
             
             if self.lasttime == 0 :
                 #print('first update')

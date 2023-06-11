@@ -738,6 +738,34 @@ def getDBHedgeMarketDatareal(userid, stratName, instid_hedge, fromtime):
 def getDBHedgeMarketDatareal1(userid, stratName, instid_hedge, fromtime,start=0,num=15000,endtime=302112021015560000):
     return myredis.zrangebyscore('sysgen_realDB1_' + str(userid) + '_' + str(stratName) + '_' + instid_hedge,
                                  fromtime, endtime,start=start,num=num, withscores=True)
+
+############################UNIFORM SAVE/LOAD#####################################
+@check_myredis
+def saveUnfinishedOrders(user, token, tradingday, orders):
+    data = json.dumps(orders)
+    myredis.hset('sysgen_pendorders_'+user+'_'+token, tradingday, data)
+
+
+@check_myredis
+def loadUnfinishedOrders(user, token, tradingday):
+    ret = myredis.hget('sysgen_pendorders_'+user+'_'+token, tradingday)
+    if ret:
+        return json.loads(ret)
+
+@check_myredis
+def saveRiskCtlRecord(user, token, tradingDay, record):
+    data = json.dumps(record)
+    myredis.hset('sysgen_riskctl_'+user+'_'+token, tradingDay, data)
+
+@check_myredis
+def loadRiskCtlRecord(user, token, tradingDay):
+    ret = myredis.hget('sysgen_riskctl_'+user+'_'+token, tradingDay)
+    if ret:
+        return json.loads(ret)
+        
+    
+    
+
     
 ######################################################################
 ##    Redis commands

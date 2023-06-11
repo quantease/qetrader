@@ -6,7 +6,7 @@ Created on Sat Mar 19 13:07:37 2022
 """
 
 from .qeredisdb import saveAccountDatarealToDB, savePositionDatarealToDB,getDBAccountDetailReal
-from .qeredisdb import delDBOrderDataReal, delDBTradeDataReal,getDBOrderDatareal
+from .qeredisdb import delDBOrderDataReal, delDBTradeDataReal,getDBOrderDatareal,saveUnfinishedOrders,loadUnfinishedOrders
 from datetime import datetime
 from .qestatistics import g_stat
 from .qeglobal import instSetts
@@ -14,7 +14,7 @@ from .qeriskctl import riskControl
 
 
 class realAccountInfo:
-    def __init__(self, balance=0,accid=0):
+    def __init__(self, user='unknown',token='',balance=0,accid=0):
         self.balance = balance
         self.avail = balance
         self.margin = 0
@@ -40,15 +40,15 @@ class realAccountInfo:
         self.current_timedigit = 0
         self.tradingDay = ""
         self.name='ctp'
-        self.user = "unknown"
+        self.user = user
         self.investorid = ''
         ### internal parameters
         self.dataSlide = {}
         self.orders = {}
         self.trades = {}
-        self.token = ''
+        self.token = token
         self.accid = accid
-        self.riskctl = riskControl(self.riskctlCall)
+        self.riskctl = riskControl(self.riskctlCall,self.user, self.token)
         #self.g_order_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
         self.g_trade_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
         self.stgtable_load = False
@@ -110,7 +110,9 @@ class realAccountInfo:
     def setLoadReady(self):
         self.loadReady = True
 
-
+    def setTradingDay(self, tradingDay):
+        self.tradingDay = tradingDay
+        self.riskctl.setTradingDay(tradingDay)
     '''
     def getPosProf(self):
         posProf = 0
@@ -241,12 +243,23 @@ class realAccountInfo:
         g_stat.updateData(self.balance, self.daypnl, self.dayfees, self.margin, self.turnover, self.tradingDay,\
                           self.winamount, self.lossamount, self.wincount, self.losscount,self.maxmarg,\
                           accid=self.accid, withdraw=self.withdraw, deposit=self.deposit)
+
+    def saveOrders(self):
+        unfinished_orders = {}
+        for oid in self.orders:
+            if self.orders[oid]['leftvol'] > 0:
+                unfinished_orders[oid] = self.orders[oid] 
+                if 'autoremake' in unfinished_orders[oid]:
+                    del unfinished_orders[oid]['autoremake']
+                if 'autocancel' in unfinished_orders[oid]:
+                    del unfinished_orders[oid]['autocancel']    
+        saveUnfinishedOrders(self.user, self.investorid, self.tradingDay, unfinished_orders)                      
 #         updateInitCap(self.user, self.balance)
 #         logger.info(f'saveToDB {self.balance}')
     
 
-    def loadFromDB(self,tradingday):
-        res = getDBAccountDetailReal(self.user, self.investorid, str(tradingday))
+    def loadFromDB(self,tradingDay):
+        res = getDBAccountDetailReal(self.user, self.investorid, str(tradingDay))
         if res:
             d = eval(res)
             self.winamount = float(d['winamount'])
@@ -254,15 +267,20 @@ class realAccountInfo:
             self.wincount = float(d['wincount'])
             self.losscount = float(d['losscount'])
             self.maxmarg = float(d['maxmarg'])
-        g_stat.loadFromDBReal(int(tradingday)) 
-        orders = getDBOrderDatareal(self.user, self.investorid, tradingday)
+        g_stat.loadFromDBReal(int(tradingDay)) 
+        orders = getDBOrderDatareal(self.user, self.investorid, tradingDay)
         for oid in orders:
             stgname = eval(orders[oid])['stratName']
             self.order_stg_table[oid] = stgname
         #print(self.order_stg_table)
         self.stgtable_load = True  
-        delDBOrderDataReal(self.user, self.investorid, tradingday)
-        delDBTradeDataReal(self.user, self.investorid, tradingday)
+        delDBOrderDataReal(self.user, self.investorid, tradingDay)
+        delDBTradeDataReal(self.user, self.investorid, tradingDay)
+        self.riskctl.load(tradingDay)
+        unfinished_orders = loadUnfinishedOrders(self.user, self.token, tradingDay)
+        if unfinished_orders:
+            for oid in unfinished_orders:
+                self.orders[oid] = unfinished_orders[oid]
     
     
 #realaccount = realAccountInfo()

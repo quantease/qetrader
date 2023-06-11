@@ -100,7 +100,7 @@ class qeCtpTrader(object):
 #         self.authcode = CTP_AuthCode
 #         self.address = FrontAddr
         self.getAsk = False
-        self.ordersload = False
+        self.ordersload = True
         self.tradesload = False
         self.classname = ''
         self.accload = False
@@ -284,11 +284,11 @@ class qeCtpTrader(object):
             #    self.tradespi.reqPosition()
                 #self.posload = True
                 
-            if not self.ordersload:
-                self.tradespi.reqOrder()
-                self.ordersload = True
+            #if not self.ordersload:
+            #    self.tradespi.reqOrder()
+            #    self.ordersload = True
             
-            elif not self.tradesload:
+            if not self.tradesload:
                 self.tradespi.reqTrade()
                 self.tradesload = True
             
@@ -363,6 +363,7 @@ class qeCtpTrader(object):
             self.account.orders[d['orderid']] = d
             if d['from'] == 'RtnOrder':
                 self.callback(d)
+                self.account.saveOrders()
 #             self.account.saveToDB()
         else:
             logger.info('rspOrder orderid is not found '+str(d['orderid']))
@@ -465,7 +466,7 @@ class qeCtpTrader(object):
                 self.crossday()
             self.tradespi.curday = d['data']['tradingday']
         self.account.current_timedigit = d['data']['timedigit']
-        self.account.tradingDay = d['data']['tradingday']
+        self.account.setTradingDay(d['data']['tradingday'])
         if self.tradespi.lasttime == 0:
             self.tradespi.lasttime = d['data']['timedigit']
         elif abs(d['data']['timedigit'] - self.tradespi.lasttime) > 2500:
@@ -1293,7 +1294,7 @@ def runQERealTraderProcess(user,account, classname,strats,traderqueue,user_setti
     ctptrader.evalmode = evalmode
     if evalmode:
         tday = getLocalTradingDay()
-        ctptrader.account.tradingDay = tday
+        ctptrader.account.setTradingDay (tday)
         ctptrader.account.loadFromDB(tday)
     ctptrader.callTimer()
     ctptrader.TraderProcess()

@@ -4,227 +4,243 @@ Created on Mon Mar 21 11:04:10 2022
 
 @author: ScottStation
 """
+
+
 from  datetime import datetime, timedelta
 import traceback
-
-#MAX_SEC_RISK_CTL_MAX = 10
-#class soptRiskControlModel:
-#    def __init__(self):
-#        self.dailyMax = 10000
-#        self.secMax = 10
-#        self.dailyCount = 0
-#        self.lastts = 0    
-#        self.intervals = []
-#        self.delayorders = {'curtime':None, 'orderlist':[]}
-#    def setDailyMax(self, dailyMax):
-#        self.dailyMax = dailyMax
-#        
-#    def setSecMax(self, secMax):
-#        self.secMax = min(secMax, MAX_SEC_RISK_CTL_MAX)
-# 
-#    def getRetryOrders(self):
-#        if len(self.delayorders['orderlist']) > 0:
-#            curts = int(datetime.now().timestamp()*1000)
-#            if curts - self.delayorders['curtime'] > 1000:
-#                  num = min(len(self.delayorders['orderlist']), int(self.secMax / 2))
-#                  tmplist = self.delayorders['orderlist'][:num]
-#                  self.delayorders['orderlist'] = self.delayorders['orderlist'][num:]
-#                  return  tmplist
-#                  
-#        return None
-#    
-#    def putRetryOrders(self, curtime, orderids):
-#        if len(orderids) > 0:
-#            self.delayorders['curtime'] = curtime
-#            self.delayorders['orderlist'] += orderids
-#    
-#    def newCount(self, num=1, orderids=[]):
-#        curts = int(datetime.now().timestamp()*1000)
-#        if self.dailyCount + num <= self.dailyMax:
-#            self.dailyCount += num
-#        else:
-#            return -1;
-#        
-#        
-#        
-#        if num > self.secMax:
-#            self.putRetryOrders(curts, orderids)
-#            return -2
-#        
-#        
-#        elif self.lastts > 0:
-#            tmpsum = num - 1
-#            
-#            interval = curts - self.lastts
-#            if tmpsum + interval > 1000:
-#                self.intervals = []
-#                for i in range(1,num):
-#                    self.intervals.append(1)
-#            else:
-#                savedints = self.intervals       
-#                tmpints = [interval]
-#                for i in range (1, num):
-#                    tmpints.append(1)
-#                failed = False
-#                for  i in range(len(self.intervals)-1, -1, -1 ):
-#                    if self.intervals[i] + sum(tmpints) <= 1000:
-#                        if len(tmpints) + 1 <= self.dailyMax:
-#                            tmpints =  [self.intervals[i]] + tmpints
-#                        else:
-#                            failed = True
-#                            break
-#                    else:
-#                        break
-#                if not failed:
-#                    self.intervals = tmpints
-#                else:
-#                    self.intervals = savedints
-#                    self.putRetryOrders(curts, orderids)
-#                    return -2
-#
-#        else:
-#            for i in range(1, num):
-#                self.intervals.append(1)
-#
-#                
-#        self.lastts = curts
-#        return 0
-#    
-#    def crossday(self):
-#        self.dailyCount = 0
-#        self.intervals = []   
-#        
-#soptriskctl = soptRiskControlModel()   
-
-
-#class ctpRiskControlModel:
-#    def __init__(self):
-#        self.dailyMax = 400
-#        self.dailyCount = 0
-#
-#    def setCancelDailyMax(self, dailyMax):
-#        self.dailyMax = dailyMax
-#        
-# 
-#    def cancelCount(self,num=1):
-#        if self.dailyCount + num <= self.dailyMax:
-#            self.dailyCount += num
-#            return 0;
-#        else:
-#            return -1;
-#    
-#    def crossday(self):
-#        self.dailyCount = 0
-# 
-#ctpriskctl = ctpRiskControlModel()        
-
-
-######################## New design ###########################################
-
-class riskControl(object):
-    def __init__(self, callback):
-        ## maxcancels
-        self.modules = {'maxcancels':False,'daymaxacts':False, 'secmaxacts':False, 'selftrade':False}
-        self.maxcancels = 380
-        self.daycancles = 0
-        self.daymaxacts = 10000
-        self.maxselftrades = 4
-        self.dayselftrades = 0
+import csv
+import pandas as pd
+import mysql.connector
+from .qelogger import logger
+from .qeglobal import get_riskctl_paras
+from .qeredisdb import saveRiskCtlRecord, loadRiskCtlRecord
+import json
+class riskControl:
+    def __init__(self, callback, user, token, settings_file = None):
+        self.modules = {'daymaxacts': False, 'secmaxacts': False,
+                        'selftrade': False, 'daymaxcancels': False, 'bigvolcancels': False}
+        self.daymaxacts = 1000
         self.dayacts = 0
-        self.secmaxacts = 10
+        self.user = user
+        self.token = token
+
+        self.secmaxacts = 10000
         self.secacts = []
+
+        self.maxselftrades = {}
+        self.dayselftrades = {}
+
+        self.maxwithdrawal = {}
+        self.daywithdrawal = {}
+
+
+        self.limitwithdrawal = {}
+        self.maxnumorder = {}
+        self.daylargewithdrawal = {}
+        self.bigvolpercent = {}
+
         self.callback = callback
+
+        self.tradingday = ''
+        #self.load()
+        # if settings_file:
+        #     self.load_settings_from_csv(settings_file)
+
+    def save(self):
+        if self.tradingday != '':
+            riskdata = {'dayacts': self.dayacts, 'dayselftrades': self.dayselftrades, 'daywithdrawal': self.daywithdrawal, 'daylargewithdrawal': self.daylargewithdrawal}
+            saveRiskCtlRecord(self.user, self.token, self.tradingday, riskdata)
+            
+    def setTradingDay(self, tradingday): 
+        self.tradingday = tradingday
     
-    def active(self, module,paras=None):
+    def load(self, tradingday):
+        self.tradingday = tradingday
+        riskctl_para = get_riskctl_paras()
+        # example: 'RS': {'maxselftrade': 5, 'maxwithdrawal': 500, 'bigvolwithdrawal': 50, 'maxvolume': 800},
+        for key, value in riskctl_para.items():
+            self.maxselftrades[key.upper()] = value['maxselftrade']
+            self.maxwithdrawal[key.upper()] = value['maxwithdrawal']
+            self.limitwithdrawal[key.upper()] = value['bigvolwithdrawal']
+            self.maxnumorder[key.upper()] = value['maxvolume']
+            self.bigvolpercent[key.upper()] = value['bigvolpercent']
+            self.bigvolpercent[key.upper()] = value['bigvolpercent'] 
+            self.daywithdrawal[key.upper()] = 0
+            self.daylargewithdrawal[key.upper()] = 0
+        riskdata = loadRiskCtlRecord(self.user, self.token, tradingday)
+        if riskdata:
+            self.dayacts = riskdata['dayacts']
+            self.dayselftrades = riskdata['dayselftrades']
+            self.daywithdrawal = riskdata['daywithdrawal']
+            self.daylargewithdrawal = riskdata['daylargewithdrawal']
+
+    def load_settings_from_csv(self, settings_file):
+        # 读取CSV文件
+        data = pd.read_csv(settings_file)
+
+        data.set_index('prodid', inplace=True)
+        #print(data)
+
+        # 将DataFrame转换为字典
+        dictionary = data.to_dict(orient='index')
+        #print(dictionary)
+
+        self.maxselftrade = {key.upper(): value['maxselftrade'] for key, value in dictionary.items()}
+        self.maxwithdrawal = {key.upper(): value['maxwithdrawal'] for key, value in dictionary.items()}
+        self.limitwithdrawal = {key.upper(): value['limitwithdrawal'] for key, value in dictionary.items()}
+        self.maxnumorder = {key.upper(): value['maxnumorder'] for key, value in dictionary.items()}
+
+
+        self.daywithdrawal = {key.upper(): 0 for key in dictionary.keys()}
+        self.dayselftrades = {key.upper(): 0 for key in dictionary.keys()}
+
+        
+        self.daylargewithdrawal= {key.upper(): 0 for key in dictionary.keys()}
+
+
+
+
+    def active(self, module):
         try:
-            if paras and not isinstance(paras, list):
-                paras = [paras]
-            if module =='maxcancels':
-                if not paras is None:
-                    self.maxcancels = paras[0]
-                print('Successfully active maxcancels risk control')
-                    
-            elif module =='daymaxacts':
-                if not paras is None:
-                    self.daymaxacts = paras[0]
-                print('Successfully active daymaxacts risk control')
-            elif module =='secmaxacts':
-                if not paras is None:
-                    self.secmaxacts = paras[0]
-                print('Successfully active secmaxacts risk control')
-            elif module =='selftrade':
-                if not paras is None:
-                    self.maxselftrades = paras[0]
-                print('Successfully active selftrade risk control')
-            else:
+            if not module  in self.modules.keys():
                 print('Invalid risk control module name.')
                 return
+            if module == 'daymaxacts':
+                print('Successfully activated daymaxacts risk control')
+            elif module == 'secmaxacts':
+                print('Successfully activated secmaxacts risk control')
+            elif module == 'selftrade':
+                print('Successfully activated selftrade risk control')
+            elif module == 'daymaxcancels':
+                print('Successfully activated daymaxcancels risk control')
+            elif module == 'bigvolcancels':
+                print('Successfully activated bigvolcancels risk control')
             self.modules[module] = True
-                    
-                    
+
         except:
+            import traceback
             traceback.print_exc()
-                
-        
-    def make_order(self, context, num=1,instid=None, limitprice=None, direction=0):
+
+
+
+    def getCancelPercent(self, instid):
+        # 获取指定合约的撤单比例
+        prod_id = self.transfer(instid)
+        try:
+            freq_percentage = (self.daywithdrawal[prod_id ] / self.maxwithdrawal[prod_id ])
+            large_percentage = (self.daylargewithdrawal[prod_id ] / self.limitwithdrawal[prod_id ])
+            return [freq_percentage, large_percentage] ## not implemented
+            # 调用回调函数，获取指定合约的撤单比例
+        except Exception as e:
+            print(f"Error getting cancel percentage for '{instid}': {str(e)}")
+            return [0,0]           
+            # 调用回调函数，获取指定合约的撤单比例
+
+
+    def getBigOrderThreshold(self, instid):
+        prod_id = self.transfer(instid)
+        return self.maxnumorder[prod_id]*self.bigvolpercent[prod_id]
+
+
+    def transfer(self, instid):
+        prod_id = ''
+        # 判断instid第二位是否为数字
+        if instid[1].isdigit():
+            prod_id = instid[0]
+        else:
+            prod_id = instid[:2]
+        return prod_id
+
+    def make_order(self, context, volume, instid=None, limitprice=None, direction=0):
+        num = 1
+        prod_id = self.transfer(instid)
         if self.modules['daymaxacts']:
             if self.dayacts + num > self.daymaxacts:
                 return -3
             self.dayacts += num
-        
+
         if self.modules['secmaxacts']:
-            self.secacts = [ ct for ct in self.secacts if (context.curtime-ct).seconds < 1] 
+            self.secacts = [ct for ct in self.secacts if (context.curtime - ct).seconds < 1]
             if len(self.secacts) + num > self.secmaxacts:
                 return -4
             for i in range(num):
                 self.secacts.append(context.curtime)
-        
-        if self.modules['selftrade'] and limitprice and instid and direction != 0:
-            instPrices = self.callback()
-            checkfield = 'longhigh' if direction < 0 else 'shortlow'
-            if instid in instPrices and checkfield in instPrices[instid]:
-                price = instPrices[instid][checkfield]
-                if direction > 0 and limitprice > price:
-                    self.dayselftrades += 1
-                elif direction < 0 and limitprice < price:
-                    self.dayselftrades += 1
-            if self.dayselftrades > self.maxselftrades:
+
+        if self.modules['bigvolcancels']:
+            if  volume >= self.maxnumorder[prod_id]:
                 return -5
-        
+
+        if self.modules['selftrade']:
+            if limitprice and instid and direction != 0:
+                instPrices = self.callback()
+                checkfield = 'longhigh' if direction < 0 else 'shortlow'
+                if instid in instPrices and checkfield in instPrices[instid]:
+                    price = instPrices[instid][checkfield]
+
+                    if direction > 0 and limitprice > price:
+                        # if instid not in self.dayselftrades:
+                        #     self.dayselftrades[prod_id] = 0
+                        self.dayselftrades[prod_id] += 1
+                    elif direction < 0 and limitprice < price:
+                        # if instid not in self.dayselftrades:
+                        #     self.dayselftrades[prod_id] = 0
+                        self.dayselftrades[prod_id] += 1
+
+                # if self.dayselftrades[prod_id] > self.percentage * self.maxselftrades[prod_id]:
+                #     print(f'Warning: 自成交达到最大自成交次数的{self.percentage * 100:.2f}%以上.')
+                #     logger.info(f'Warning: 自成交达到最大自成交次数的{self.percentage * 100:.2f}%以上.')
+                # if self.dayselftrades[prod_id] < self.maxselftrades[prod_id]:
+                #     self.dayselftrades[prod_id] += 1
+                if self.dayselftrades[prod_id] > self.maxselftrades[prod_id]:
+                    return -5
+        self.save()
         return 0
-    
-    def cancel_order(self, context, num=1):
-        if self.modules['maxcancels']:
-            if self.daycancles + num > self.maxcancels:
-                return -2
-            elif self.daycancles + num >= 0.85 * self.maxcancels:
-                print('Warning: 撤单次数达到最大撤单次数的85%以上.')
-                logger.info('Warning: 撤单次数达到最大撤单次数的85%以上.')    
-            self.daycancles += num 
-        
+
+    def cancel_order(self, context, orderid):
+        instid = context.orders[orderid]['instid']
+
+        prod_id = self.transfer(instid)
+
+        num = 1
         if self.modules['daymaxacts']:
             if self.dayacts + num > self.daymaxacts:
                 return -3
             self.dayacts += num
-            
+
         if self.modules['secmaxacts']:
-            self.secacts = [ ct for ct in self.secacts if (context.curtime-ct).seconds < 1] 
+            self.secacts = [ct for ct in self.secacts if (context.curtime - ct).seconds < 1]
             if len(self.secacts) + num > self.secmaxacts:
                 return -4
             for i in range(num):
                 self.secacts.append(context.curtime)
-        
-        
+
+        if self.modules['daymaxcancels']:
+            if self.daywithdrawal[prod_id] + num >= self.maxwithdrawal[prod_id] - 1:
+                return -2
+            # elif self.daywithdrawal[prod_id] + num >= self.percentage * self.maxwithdrawal[prod_id]:
+            #     print(f'Warning: 频繁撤单次数达到最大撤单次数的{self.percentage * 100:.2f}%以上.')
+            #
+            #     logger.info(f'Warning: 频繁撤单次数达到最大撤单次数的{self.percentage * 100}%以上.')
+            else:
+                self.daywithdrawal[prod_id] += 1
+
+        if self.modules['bigvolcancels']:
+            if context.orders[orderid]['leftvol'] >= self.maxnumorder[prod_id] * self.bigvolpercent[prod_id]:
+                if self.daylargewithdrawal[prod_id] + num >= self.limitwithdrawal[prod_id] :
+                    return -2
+                else:
+                    self.daylargewithdrawal[prod_id] += num
+        self.save()
         return 0
-    
+
     def crossDay(self):
-        self.dailyCount = 0
+
         self.dayacts = 0
         self.secacts = []
-        self.dayselftrades = 0
-
-
-
+        self.dayselftrades = {}
+        self.daywithdrawal = {}
+        self.daylargewithdrawal = {}
+        #self.save()
 
 
 
