@@ -10,7 +10,7 @@ from  datetime import datetime, timedelta
 import traceback
 import csv
 import pandas as pd
-import mysql.connector
+#import mysql.connector
 from .qelogger import logger
 from .qeglobal import get_riskctl_paras
 from .qeredisdb import saveRiskCtlRecord, loadRiskCtlRecord
@@ -57,16 +57,17 @@ class riskControl:
     def load(self, tradingday):
         self.tradingday = tradingday
         riskctl_para = get_riskctl_paras()
+        if isinstance(riskctl_para, dict):
         # example: 'RS': {'maxselftrade': 5, 'maxwithdrawal': 500, 'bigvolwithdrawal': 50, 'maxvolume': 800},
-        for key, value in riskctl_para.items():
-            self.maxselftrades[key.upper()] = value['maxselftrade']
-            self.maxwithdrawal[key.upper()] = value['maxwithdrawal']
-            self.limitwithdrawal[key.upper()] = value['bigvolwithdrawal']
-            self.maxnumorder[key.upper()] = value['maxvolume']
-            self.bigvolpercent[key.upper()] = value['bigvolpercent']
-            self.bigvolpercent[key.upper()] = value['bigvolpercent'] 
-            self.daywithdrawal[key.upper()] = 0
-            self.daylargewithdrawal[key.upper()] = 0
+            for key, value in riskctl_para.items():
+                self.maxselftrades[key.upper()] = value['maxselftrade']
+                self.maxwithdrawal[key.upper()] = value['maxwithdrawal']
+                self.limitwithdrawal[key.upper()] = value['bigvolwithdrawal']
+                self.maxnumorder[key.upper()] = value['maxvolume']
+                self.bigvolpercent[key.upper()] = value['bigvolpercent']
+                self.bigvolpercent[key.upper()] = value['bigvolpercent'] 
+                self.daywithdrawal[key.upper()] = 0
+                self.daylargewithdrawal[key.upper()] = 0
         riskdata = loadRiskCtlRecord(self.user, self.token, tradingday)
         if riskdata:
             self.dayacts = riskdata['dayacts']
