@@ -753,13 +753,15 @@ def loadUnfinishedOrders(user, token, tradingday):
         return json.loads(ret)
 
 @check_myredis
-def saveRiskCtlRecord(user, token, tradingDay, record):
+def saveRiskCtlRecord(user, token, tradingDay, record, runmode='real'):
     data = json.dumps(record)
-    myredis.hset('sysgen_riskctl_'+user+'_'+token, tradingDay, data)
+    key = 'sysgen_riskctl_'+user+'_'+token if runmode == 'real' else 'sysgen_riskctl_simu_'+user+'_'+token
+    myredis.hset(key, tradingDay, data)
 
 @check_myredis
-def loadRiskCtlRecord(user, token, tradingDay):
-    ret = myredis.hget('sysgen_riskctl_'+user+'_'+token, tradingDay)
+def loadRiskCtlRecord(user, token, tradingDay, runmode='real'):
+    key = 'sysgen_riskctl_'+user+'_'+token if runmode == 'real' else 'sysgen_riskctl_simu_'+user+'_'+token
+    ret = myredis.hget(key, tradingDay)
     if ret:
         return json.loads(ret)
         

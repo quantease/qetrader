@@ -16,13 +16,14 @@ from .qeglobal import get_riskctl_paras
 from .qeredisdb import saveRiskCtlRecord, loadRiskCtlRecord
 import json
 class riskControl:
-    def __init__(self, callback, user, token, settings_file = None):
+    def __init__(self, callback, user, token, settings_file = None, runmode = 'real'):
         self.modules = {'daymaxacts': False, 'secmaxacts': False,
                         'selftrade': False, 'daymaxcancels': False, 'bigvolcancels': False}
         self.daymaxacts = 1000
         self.dayacts = 0
         self.user = user
         self.token = token
+        self.runmode = runmode
 
         self.secmaxacts = 10000
         self.secacts = []
@@ -49,7 +50,7 @@ class riskControl:
     def save(self):
         if self.tradingday != '':
             riskdata = {'dayacts': self.dayacts, 'dayselftrades': self.dayselftrades, 'daywithdrawal': self.daywithdrawal, 'daylargewithdrawal': self.daylargewithdrawal}
-            saveRiskCtlRecord(self.user, self.token, self.tradingday, riskdata)
+            saveRiskCtlRecord(self.user, self.token, self.tradingday, riskdata, runmode = self.runmode)
             
     def setTradingDay(self, tradingday): 
         self.tradingday = tradingday
@@ -68,7 +69,7 @@ class riskControl:
                 self.bigvolpercent[key.upper()] = value['bigvolpercent'] 
                 self.daywithdrawal[key.upper()] = 0
                 self.daylargewithdrawal[key.upper()] = 0
-        riskdata = loadRiskCtlRecord(self.user, self.token, tradingday)
+        riskdata = loadRiskCtlRecord(self.user, self.token, tradingday, runmode = self.runmode)
         if riskdata:
             self.dayacts = riskdata['dayacts']
             self.dayselftrades = riskdata['dayselftrades']

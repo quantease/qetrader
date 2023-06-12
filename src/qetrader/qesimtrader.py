@@ -75,7 +75,7 @@ class accountInfo():
         self.user = user
         self.token = token
         self.curtime = datetime.now()
-        self.riskctl = riskControl(self.riskctlCall,user=user,token=token)
+        self.riskctl = riskControl(self.riskctlCall,user=user,token=token,runmode='simu')
         self.loadReady = False
         self.loadPosition = True
         self.stratCross = {}
@@ -729,7 +729,7 @@ class QEsimtrader(object):
                 simuaccount.orders[oid]['leftvol'] = 0
         g_stat.loadFromDBSimu(int(tradingDay))
         simuaccount.setLoadReady()
-        self.riskctl.load(tradingDay)
+        simuaccount.riskctl.load(tradingDay)
     
     def sendForceCloseOrder(self, instid, direction, price, volume, ordertype="limit", action="open", closetype='auto'):
         now = datetime.now()
@@ -846,7 +846,7 @@ class QEsimtrader(object):
        
         
         
-    def update(self,d,instids):
+    def update(self,d,instid):
         global g_dataSlide
         try:
             
@@ -860,7 +860,7 @@ class QEsimtrader(object):
                     self.crossday()
                 self.curday = d['data']['tradingday']
             #print("update to matchTrade")
-            self.matchTrade(instids)
+            self.matchTrade(instid)
             
             simuaccount.current_timedigit = d['data']['timedigit']
             if simuaccount.tradingDay == '':
@@ -1022,7 +1022,7 @@ class QEsimtrader(object):
     #     return (tempdata[-2], tempdata[-1]) 
         
 
-    def matchTrade(self,instids):
+    def matchTrade(self,instid):
         global g_dataSlide
         
         tradeprice = 0.0
@@ -1032,17 +1032,17 @@ class QEsimtrader(object):
         
         #print("matchTrade", self.g_order_id,self.g_benchmark)
         #return
-        #print('matchTrade', len(simuaccount.orders))
+        #print('matchTrade', len(simuaccount.orders), instid)
         if len(simuaccount.orders) > 0:
             try:
                 for key,order in simuaccount.orders.items():
-                    for instid in instids:
-                    #print(key, order)
+                    #for instid in instids:
+                        #print('key',key, 'order',order['leftvol'],order['volume'],order['direction'],order['action'],instid,order['instid'])
                         if order['leftvol'] > 0 and instid == order['instid']:
     #                         print('orderid '+str(order['incoming_orderid']))
                             #instid = order['instid']
                             #if order['status'] == qetype.KEY_STATUS_PART_TRADED:
-                            #    print("check again:",order['status'], instid)
+                            #print("check again:",order['status'], instid, order['leftvol'], order['volume'], order['direction'], order['action'])
                             if not self.mode_724 and not is_valid_trade_time(instid,self.curtime):
                                 print("MatchTrade failed on invalid data time",self.curtime, instid)
                                 logger.info(f"MatchTrade failed on invalid data time:{self.curtime}, intid:{instid}")

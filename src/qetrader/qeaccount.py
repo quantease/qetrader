@@ -48,7 +48,7 @@ class realAccountInfo:
         self.trades = {}
         self.token = token
         self.accid = accid
-        self.riskctl = riskControl(self.riskctlCall,self.user, self.token)
+        self.riskctl = riskControl(self.riskctlCall,self.user, self.token,runmode='real')
         #self.g_order_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
         self.g_trade_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
         self.stgtable_load = False
