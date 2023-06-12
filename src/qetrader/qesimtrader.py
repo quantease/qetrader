@@ -729,7 +729,7 @@ class QEsimtrader(object):
                 simuaccount.orders[oid]['leftvol'] = 0
         g_stat.loadFromDBSimu(int(tradingDay))
         simuaccount.setLoadReady()
-        riskctl.load(tradingDay)
+        self.riskctl.load(tradingDay)
     
     def sendForceCloseOrder(self, instid, direction, price, volume, ordertype="limit", action="open", closetype='auto'):
         now = datetime.now()
