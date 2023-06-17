@@ -157,7 +157,7 @@ class qeCtpTrader(object):
 #         self.address = FrontAddr
         self.getAsk = False
         self.ordersload = True
-        self.tradesload = False
+        self.tradesload = True
         self.classname = ''
         self.accload = False
         self.posload = False
@@ -353,11 +353,11 @@ class qeCtpTrader(object):
                 #    self.tradespi.reqOrder()
                 #    self.ordersload = True
                 
-                if not self.tradesload:
-                    self.tradespi.reqTrade()
-                    self.tradesload = True
+                #if not self.tradesload:
+                #    self.tradespi.reqTrade()
+                #    self.tradesload = True
                 
-                elif not self.accload or not self.posload or curts - self.lastts > 1 :
+                if not self.accload or not self.posload or curts - self.lastts > 1 :
                     self.lastts = curts
                     if self.getAsk == True :
                         self.getAsk = False
@@ -477,7 +477,7 @@ class qeCtpTrader(object):
             #if d['stratName'] == '':
             #    print('unresolved trade', d['orderid'])
             trade['accid'] = self.account.accid
-            saveTradeDatarealToDB(self.account.user, self.account.token, self.account.tradingDay, trade )
+            #saveTradeDatarealToDB(self.account.user, self.account.token, self.account.tradingDay, trade )
             if d['from'] == 'RtnTrade':
                 self.callback(d)
                 self.account.saveToDB()

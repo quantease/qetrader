@@ -493,19 +493,18 @@ def real_cancel_order(context, orderid):
                             ## CCFX cancel commission
                             context.stat.dayfees += 1
                             context.stat.totalfees += 1
+                        temporder = {}
+                        temporder['type'] = qetype.KEY_CANCEL_ORDER
+                        temporder['stratName'] = context.stratName
+                        temporder['orderid'] = orderid
+                        if context.runmode == 'real':
+                                    getAccidTraderQueue(accid).put(temporder)
+                        else:
+                                    simuqueue.put(temporder)
                         ## set the remake count to zero
             print(context.curtime, 'cancel all order')
             logger.info('cancel all order')
             context.stat.avail = context.stat.balance - context.marg - context.frozenMarg
-            temporder = {}
-            temporder['type'] = qetype.KEY_CANCEL_ORDER
-            temporder['stratName'] = context.stratName
-            temporder['orderid'] = orderid
-            for accid in accids:
-                if context.runmode == 'real':
-                            getAccidTraderQueue(accid).put(temporder)
-                else:
-                            simuqueue.put(temporder)
 
         else:
             

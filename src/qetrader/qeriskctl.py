@@ -67,8 +67,6 @@ class riskControl:
                 self.maxnumorder[key.upper()] = value['maxvolume']
                 self.bigvolpercent[key.upper()] = value['bigvolpercent']
                 self.bigvolpercent[key.upper()] = value['bigvolpercent'] 
-                self.daywithdrawal[key.upper()] = 0
-                self.daylargewithdrawal[key.upper()] = 0
         riskdata = loadRiskCtlRecord(self.user, self.token, tradingday, runmode = self.runmode)
         if riskdata:
             self.dayacts = riskdata['dayacts']
@@ -129,8 +127,10 @@ class riskControl:
         # 获取指定合约的撤单比例
         prod_id = self.transfer(instid)
         try:
-            freq_percentage = (self.daywithdrawal[prod_id ] / self.maxwithdrawal[prod_id ])
-            large_percentage = (self.daylargewithdrawal[prod_id ] / self.limitwithdrawal[prod_id ])
+            daywithdrawal = self.daywithdrawal[instid ] if instid  in self.daywithdrawal.keys() else 0
+            daylarge_withdrawal = self.daylargewithdrawal[instid ] if instid  in self.daylargewithdrawal.keys() else 0
+            freq_percentage = (daywithdrawal / self.maxwithdrawal[prod_id ])
+            large_percentage = (daylarge_withdrawal / self.limitwithdrawal[prod_id ])
             return [freq_percentage, large_percentage] ## not implemented
             # 调用回调函数，获取指定合约的撤单比例
         except Exception as e:
@@ -217,21 +217,25 @@ class riskControl:
                 self.secacts.append(context.curtime)
 
         if self.modules['daymaxcancels']:
-            if self.daywithdrawal[prod_id] + num >= self.maxwithdrawal[prod_id] - 1:
+            if not instid in self.daywithdrawal:
+                self.daywithdrawal[instid] = num
+            elif self.daywithdrawal[instid] + num >= self.maxwithdrawal[prod_id] - 1:
                 return -2
             # elif self.daywithdrawal[prod_id] + num >= self.percentage * self.maxwithdrawal[prod_id]:
             #     print(f'Warning: 频繁撤单次数达到最大撤单次数的{self.percentage * 100:.2f}%以上.')
             #
             #     logger.info(f'Warning: 频繁撤单次数达到最大撤单次数的{self.percentage * 100}%以上.')
             else:
-                self.daywithdrawal[prod_id] += 1
+                self.daywithdrawal[instid] += num
 
         if self.modules['bigvolcancels']:
             if context.orders[orderid]['leftvol'] >= self.maxnumorder[prod_id] * self.bigvolpercent[prod_id]:
-                if self.daylargewithdrawal[prod_id] + num >= self.limitwithdrawal[prod_id] :
+                if not instid in self.daylargewithdrawal:
+                    self.daylargewithdrawal[instid] = num
+                elif self.daylargewithdrawal[instid] + num >= self.limitwithdrawal[prod_id] :
                     return -2
                 else:
-                    self.daylargewithdrawal[prod_id] += num
+                    self.daylargewithdrawal[instid] += num
         self.save()
         return 0
 
