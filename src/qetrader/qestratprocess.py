@@ -266,19 +266,20 @@ class qeStratProcess:
                         elif d['type'] == qetype.KEY_ON_ORDER:
                             #print('on_Order')
                             #print('3',d)
+                            self.handleOrder(d,context)
                             try:
                                 strat.handleOrder(d,context)
                             except Exception as e:
                                 print(f'Error on strat.handleOrder: {e}')
-                            self.handleOrder(d,context)
                         elif d['type'] == qetype.KEY_ON_ORDER_ERROR:
                             #print('on_Order')
                             #print('3',d)
+                            self.handleOrder(d,context)
                             try:
                                 strat.handleOrderError(d,context)
                             except Exception as e:
                                 print(f'Error on strat.handleOrderError: {e}')
-                            self.handleOrder(d,context)
+
                         elif d['type'] == qetype.KEY_ON_TRADE:
                             try:
                                 strat.handleTrade(d,context)
@@ -523,7 +524,7 @@ class qeStratProcess:
     def handleOrder(self,order,context):  
         try:     
             corder = context.orders.get(order['orderid'],None)
-            #print('stratprocess 1',corder)
+            #print('stratprocess ',order)
             if corder:
                 #time = str(order['timedigit'])
                 corder['status'] = order['status']

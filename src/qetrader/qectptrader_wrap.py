@@ -253,10 +253,13 @@ class qeCtpTrader(object):
         return
     def callback(self,d):
         #global tstrats
-        if d['stratName'].replace(' ','') != '':
+        #print('callback',d)
+        if d['stratName'].replace(' ','') != '' and d['stratName'] != 'algoex':
+            #print('callback',d['stratName'],self.strats)
             if self.strats:
                 stratQueue = self.strats.get(d['stratName'],None)
                 if stratQueue:
+                    #print('callback',d['stratName'],d.get('leftvol',-1),d['type'])
                     stratQueue['queue'].put(d)
                 else:
                     logger.error('callback '+str(d['stratName'])+' is not found')
@@ -424,8 +427,6 @@ class qeCtpTrader(object):
                 order['leftvol'] = d['volume'] - d['tradevol']
             d['cancelvol'] = order['cancelvol']
             d['leftvol'] = order['leftvol']  
-            #if d['stratName'] == '':
-            #    print('unresolved order', d['orderid'])
             d['accid'] = self.account.accid
             d['timecond'] = order['timecond']
             #d['sessionid'] = order['sessionid']
@@ -433,6 +434,7 @@ class qeCtpTrader(object):
             saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
             self.account.orders[d['orderid']] = d
             if d['from'] == 'RtnOrder':
+                #print('onOrder callback',d)
                 self.callback(d)
                 self.account.saveOrders()
 #             self.account.saveToDB()
@@ -501,11 +503,13 @@ class qeCtpTrader(object):
             d['tradevol'] = order['tradevol']  
             d['cancelvol'] = order['cancelvol']
             d['leftvol'] = order['leftvol']
+            d['volume'] = order['volume']
+            d['price'] = order['price']
 
             if d['errorid'] == 26: ## 全部已成交
+                d['cancelvol'] = order['volume'] - order['tradevol']
                 d['tradevol'] = order['volume']
                 d['leftvol'] = 0
-                d['cancelvol'] = order['cancelvol']
             ## add keys            
             d['action'] = order['action']
             d['closetype'] = order['closetype']
@@ -514,7 +518,14 @@ class qeCtpTrader(object):
             d['time'] = datetime.now().strftime("%H:%M:%S")
             self.callback(d)
             saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
-            self.account.orders[d['orderid']]['status'] = d['status']
+            order['status'] = qetype.KEY_STATUS_CANCEL_FAILED
+            order['cancelvol'] = d['cancelvol']
+            order['leftvol'] = d['leftvol']
+            order['tradevol'] = d['tradevol']
+            order['errorid'] = d['errorid']
+            order['errormsg'] = d['errormsg']
+            self.account.orders[d['orderid']] = order
+
 
 
 
@@ -600,6 +611,7 @@ class qeCtpTrader(object):
         if not self.accload:
             self.accload = True
             self.account.saveToDB()
+            print(f'ctp账户资金信息加载完毕 {self.account.balance}')
             logger.info(f'ctp账户资金信息加载完毕 {self.account.balance}')
             self.account.setLoadReady()
         
@@ -1324,7 +1336,7 @@ class CTradeSpi(TraderApiWrapper):
         #d['offset_ctp'] = pOrderAction.CombOffsetFlag
         # d['price'] = pOrderAction.LimitPrice
         d['errorid'] = pRspInfo.ErrorID
-        d['erromsg'] = pRspInfo.ErrorMsg
+        d['errormsg'] = pRspInfo.ErrorMsg
         self.tqueue.put(d)
 #       print('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
         logger.error('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
