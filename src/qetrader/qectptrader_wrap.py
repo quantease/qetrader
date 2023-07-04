@@ -272,6 +272,7 @@ class qeCtpTrader(object):
         d['instid_ex'] = instid_ex
         d['exID'] = exID
         
+        '''
         if d['action'] == 'close':
             
             if d['closetype'] == 'auto':
@@ -331,6 +332,7 @@ class qeCtpTrader(object):
                         d['closetype'] = "closetoday"
             elif exID != 'SFE' and exID != 'INE':
                     d['closetype'] = "close"
+        '''
         #print('sendOrder',d['stratName'])    
         self.tradespi.sendOrder(d)
         if repeat:
@@ -479,7 +481,9 @@ class qeCtpTrader(object):
             #if d['stratName'] == '':
             #    print('unresolved trade', d['orderid'])
             trade['accid'] = self.account.accid
-            #saveTradeDatarealToDB(self.account.user, self.account.token, self.account.tradingDay, trade )
+            saveTradeDatarealToDB(self.account.user, self.account.token, self.account.tradingDay, trade )
+            print(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
+            logger.info(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
             if d['from'] == 'RtnTrade':
                 self.callback(d)
                 self.account.saveToDB()
@@ -507,7 +511,7 @@ class qeCtpTrader(object):
             d['price'] = order['price']
 
             if d['errorid'] == 26: ## 全部已成交
-                d['cancelvol'] = order['volume'] - order['tradevol']
+                d['cancelvol'] = 0 # order['volume'] - order['tradevol']
                 d['tradevol'] = order['volume']
                 d['leftvol'] = 0
             ## add keys            
@@ -1339,7 +1343,7 @@ class CTradeSpi(TraderApiWrapper):
         d['errormsg'] = pRspInfo.ErrorMsg
         self.tqueue.put(d)
 #       print('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
-        logger.error('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
+        logger.error('CancelOrder failed orderID='+str(pOrderAction.OrderRef)+',ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
         
     def OnRtnTrade(self, pTrade) -> None:
         #global tqueue

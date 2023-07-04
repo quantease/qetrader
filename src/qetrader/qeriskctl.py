@@ -33,7 +33,7 @@ class riskControl:
 
         self.maxwithdrawal = {}
         self.daywithdrawal = {}
-
+        self.minvol = {}
 
         self.limitwithdrawal = {}
         self.maxnumorder = {}
@@ -67,6 +67,7 @@ class riskControl:
                 self.maxnumorder[key.upper()] = value['maxvolume']
                 self.bigvolpercent[key.upper()] = value['bigvolpercent']
                 self.bigvolpercent[key.upper()] = value['bigvolpercent'] 
+                self.minvol[key.upper()] = value['minvol']
         riskdata = loadRiskCtlRecord(self.user, self.token, tradingday, runmode = self.runmode)
         if riskdata:
             self.dayacts = riskdata['dayacts']
@@ -121,7 +122,9 @@ class riskControl:
             import traceback
             traceback.print_exc()
 
-
+    def getMinVol(self, instid):
+        prod_id = self.transfer(instid)
+        return self.minvol[prod_id] if prod_id in self.minvol.keys() else 1
 
     def getCancelPercent(self, instid):
         # 获取指定合约的撤单比例

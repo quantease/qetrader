@@ -1047,7 +1047,7 @@ def real_get_bar(context, freq, count=None):
                     df.set_index(["runtime"], inplace=True)
                     #print(df)
                     if f=='1min':
-                        if 'time' in data[instid]:
+                        if 'time' in data[instid].columns:
                             del data[instid]['time']
                         if count and isinstance(count, int):
                             
@@ -1085,7 +1085,8 @@ def real_get_bar(context, freq, count=None):
                                 tmp=df[col].resample(f, label='right', closed='right').last()
                             df2.loc[:,col] = tmp
                         #print(df2)
-                        del df2['time']
+                        if 'time' in df2.columns:
+                            del df2['time']
                         if isinstance(count, int):
                             data[instid]=df2.dropna(how='any').iloc[-count:,]
                         else:
