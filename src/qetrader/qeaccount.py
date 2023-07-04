@@ -154,6 +154,33 @@ class realAccountInfo:
                     return self.position[instid][dirstr][field]
         return 0        
     
+    def updatePosition(self, instid, direction, action, price, vol, closetype):
+        if action == 'close':
+            dirstr = 'short' if direction > 0 else 'long'
+        else:
+            dirstr = 'long' if direction > 0 else 'short'
+
+        if instid in self.position:
+            if dirstr in self.position[instid]:
+                if action == 'open':
+                    self.position[instid][dirstr]['volume'] += vol
+                    self.position[instid][dirstr]['poscost'] = (self.position[instid][dirstr]['poscost'] * \
+                                                                self.position[instid][dirstr]['volume'] + \
+                                                                vol * price) / self.position[instid][dirstr]['volume']
+                else:
+                    self.position[instid][dirstr]['volume'] -= vol
+                    if self.position[instid][dirstr]['volume'] <= 0:
+                        self.position[instid][dirstr]['volume'] = 0
+                        self.position[instid][dirstr]['poscost'] = 0
+                    else:
+                        self.position[instid][dirstr]['poscost'] = (self.position[instid][dirstr]['poscost'] * \
+                                                                    self.position[instid][dirstr]['volume'] - \
+                                                                    vol * price) / self.position[instid][dirstr]['volume']
+                    if closetype == 'closeyesterday':
+                        self.position[instid][dirstr]['yesvol'] -= vol
+                    
+
+
     
     
     def updateWinLossParas(self, dirstr, price, vol, closetype, instid):

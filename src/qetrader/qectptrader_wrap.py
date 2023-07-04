@@ -259,7 +259,7 @@ class qeCtpTrader(object):
             if self.strats:
                 stratQueue = self.strats.get(d['stratName'],None)
                 if stratQueue:
-                    #print('callback',d['stratName'],d.get('leftvol',-1),d['type'])
+                    print('callback',d['stratName'],d.get('leftvol',-1),d['type'])
                     stratQueue['queue'].put(d)
                 else:
                     logger.error('callback '+str(d['stratName'])+' is not found')
@@ -486,6 +486,8 @@ class qeCtpTrader(object):
             logger.info(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
             if d['from'] == 'RtnTrade':
                 self.callback(d)
+                ## update position at once
+                self.account.updatePosition(trade['instid'], trade['dir'], trade['action'],trade['tradeprice'], trade['tradevol'], trade['closetype'])
                 self.account.saveToDB()
                 dirstr = 'long' if d['dir']>0 else 'short'
                 self.account.updateWinLossParas(dirstr,  d['tradeprice'], d['tradevol'], d['closetype'], order['instid'])

@@ -344,32 +344,34 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
             dirstr = 'long' if  direction < 0 else 'short'
             yesvol = context.getAccountPosition(instid, dirstr, 'yesvol')
             tvol = context.getAccountPosition(instid, dirstr, 'volume')
+            ## Calculate volume on road
+            volOnRoad = 0
+            for orderid in context.account.orders:
+                if context.account.orders[orderid]['instid'] == instid and \
+                    context.account.orders[orderid]['direction'] == direction and \
+                    context.account.orders[orderid]['action'] == 'close' and \
+                    context.account.orders[orderid]['closetype'] == 'closeyesterday':
+                    volOnRoad += context.account.orders[orderid]['leftvol']    
+            yesvol -= volOnRoad
+            tvol -= volOnRoad
+
             if yesvol > 0:
                 if volume > yesvol:
                     closevol = [ min(volume - yesvol, tvol - yesvol), yesvol]
                 else:
                     closevol = [ 0, volume]
+                print('有昨仓',instid, dirstr, yesvol, tvol, closevol, volOnRoad)    
             else:
                 closevol = [min(volume, tvol - yesvol), 0]
             
             ordernum = 2 if closevol[0] != 0 and closevol[1] != 0 else 1
-            if ordernum == 1:
-                rc = context.accounts[accid].riskctl.make_order(context, volume, instid, price, direction)
-                if rc < 0:
-                    logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
-                    return rc,[]
-            else:    
-                rc = context.accounts[accid].riskctl.make_order(context, closevol[0], instid, price, direction)
-                if rc < 0:
-                    logger.warning(f"风控模块阻止下单平今: error code {rc} on {instid} {action} {direction}")
-                    return rc,[]
             #rc = context.accounts[accid].riskctl.make_order(context, ordernum)
             
             success = 0
             rc = 0
             for i in range(len(closevol)):
                 if closevol[i] > 0:
-                    rc = context.accounts[accid].riskctl.make_order(context, closevol[i], instid, price, direction)
+                    rc = context.account.riskctl.make_order(context, closevol[i], instid, price, direction)
                     if rc < 0:
                         ctstr = '平今' if i == 0 else '平昨'
                         logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction} {ctstr} {closevol[i]}")
@@ -406,7 +408,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
             if success == 0:
                 return rc, []
         else:            
-            rc = context.accounts[accid].riskctl.make_order(context, volume, instid, price, direction)
+            rc = context.account.riskctl.make_order(context, volume, instid, price, direction)
             #rc = context.account.riskctl.make_order(context)
             if rc < 0:
                 logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
@@ -1047,7 +1049,7 @@ def real_get_bar(context, freq, count=None):
                     df.set_index(["runtime"], inplace=True)
                     #print(df)
                     if f=='1min':
-                        if 'time' in data[instid].columns:
+                        if 'time' in data[instid]:
                             del data[instid]['time']
                         if count and isinstance(count, int):
                             
@@ -1085,8 +1087,7 @@ def real_get_bar(context, freq, count=None):
                                 tmp=df[col].resample(f, label='right', closed='right').last()
                             df2.loc[:,col] = tmp
                         #print(df2)
-                        if 'time' in df2.columns:
-                            del df2['time']
+                        del df2['time']
                         if isinstance(count, int):
                             data[instid]=df2.dropna(how='any').iloc[-count:,]
                         else:
