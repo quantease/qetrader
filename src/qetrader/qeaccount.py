@@ -273,14 +273,16 @@ class realAccountInfo:
 
     def saveOrders(self):
         unfinished_orders = {}
+        #print('saveOrders1',self.orders)
         for oid in self.orders:
             if self.orders[oid]['leftvol'] > 0:
-                unfinished_orders[oid] = self.orders[oid] 
+                unfinished_orders[oid] = self.orders[oid].copy()
                 if 'autoremake' in unfinished_orders[oid]:
                     del unfinished_orders[oid]['autoremake']
                 if 'autocancel' in unfinished_orders[oid]:
                     del unfinished_orders[oid]['autocancel']    
-        saveUnfinishedOrders(self.user, self.investorid, self.tradingDay, unfinished_orders)                      
+        saveUnfinishedOrders(self.user, self.investorid, self.tradingDay, unfinished_orders)     
+        #print('saveOrders2',self.orders)                 
 #         updateInitCap(self.user, self.balance)
 #         logger.info(f'saveToDB {self.balance}')
     

@@ -304,8 +304,10 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
         #leftvol = volume
         cancelvol = 0
         #destprice = price if ordertype == 'limit' else context.getCurrent(instid)
-        autoremake += [datetime.now(), 'wait'] 
-        autocancel += [datetime.now(), 'wait']
+        if len(autoremake) ==4:
+            autoremake += [datetime.now(), 'wait'] 
+        if len(autocancel) ==2:
+            autocancel += [datetime.now(), 'wait']
         
         if True: # not context.realTrade:
             ''' #move to simtrader

@@ -385,8 +385,6 @@ class qeCtpTrader(object):
             self.tradespi.authenticate()
         return
     def onOrder(self,d): 
-#         print('onOrder '+str(d['status_ctp']))
-#         print(d['orderid'])
         order = self.account.orders.get(d['orderid'],None)
         if order:
             d['status'] = statusMap.get(d['status_ctp'],'unknown')
@@ -433,8 +431,12 @@ class qeCtpTrader(object):
             d['timecond'] = order['timecond']
             #d['sessionid'] = order['sessionid']
             #print('errormsg',d.keys())
+            order['status'] = d['status']
+            order['tradevol'] = d['tradevol']
+            self.account.orders[d['orderid']] = order            
             saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
-            self.account.orders[d['orderid']] = d
+
+
             if d['from'] == 'RtnOrder':
                 #print('onOrder callback',d)
                 self.callback(d)
@@ -460,6 +462,12 @@ class qeCtpTrader(object):
                 d['instid'] = order['instid']
                 #d['orderid'] = order['incoming_orderid']
             
+            ## test only
+            # order['tradevol'] += d['tradevol']
+            # order['leftvol'] -= d['tradevol']
+            # self.account.orders[d['orderid']] = order
+
+
             trade = {}
             trade['instid'] = d['instid']
             trade['action'] = d['action']

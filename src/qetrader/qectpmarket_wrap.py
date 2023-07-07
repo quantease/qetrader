@@ -384,6 +384,7 @@ class CFtdcMdSpi(MdApiWrapper):
         d['instid'] = qeinst
         d['data'] = mddata
         #print(d)
+        g_dataSlide.update([d])
         self.callback(d)
         
     def OnRspSubMarketData(self, pSpecificInstrument, pRspInfo, nRequestID, bIsLast) -> None:
@@ -407,7 +408,7 @@ class CFtdcMdSpi(MdApiWrapper):
             if d['type'] == qetype.KEY_MARKET_DATA:
                 datastr = json.dumps(d['data'])
                 cd = copy.copy(d)
-                g_dataSlide.update([d])
+               
                 if self.strats['async'] and self.recmode:
                     self.strats['queue'].put(cd)
                 elif self.stratInsts:
