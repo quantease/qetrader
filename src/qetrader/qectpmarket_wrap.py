@@ -383,7 +383,7 @@ class CFtdcMdSpi(MdApiWrapper):
 #         d['time'] = timedigit
         d['instid'] = qeinst
         d['data'] = mddata
-        #print(d)
+        #print('market',d['instid'],mddata['current'])
         g_dataSlide.update([d])
         self.callback(d)
         

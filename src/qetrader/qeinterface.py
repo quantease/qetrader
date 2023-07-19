@@ -298,7 +298,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
         
     try:
 
-        status = 'committed'
+        status = 'loaded'
         errorid = 0
         errormsg = ''
         #leftvol = volume

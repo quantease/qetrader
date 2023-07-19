@@ -309,8 +309,8 @@ class realAccountInfo:
         unfinished_orders = loadUnfinishedOrders(self.user, self.token, tradingDay)
         if unfinished_orders:
             for oid in unfinished_orders:
-                self.orders[oid] = unfinished_orders[oid]
+                self.orders[int(oid)] = unfinished_orders[oid]
     
-    
+        
 #realaccount = realAccountInfo()
 

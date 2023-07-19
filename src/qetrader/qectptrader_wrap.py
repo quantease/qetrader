@@ -265,7 +265,7 @@ class qeCtpTrader(object):
                     logger.error('callback '+str(d['stratName'])+' is not found')
         
     def sendOrder(self,d):
-        repeat = False
+        #repeat = False
         tempinstid_ex,tempexID = transInstID2Real([d['instid']])
         instid_ex = tempinstid_ex[0]
         exID = tempexID[0]
@@ -335,8 +335,8 @@ class qeCtpTrader(object):
         '''
         #print('sendOrder',d['stratName'])    
         self.tradespi.sendOrder(d)
-        if repeat:
-            self.tradespi.sendOrder(d1)
+        #if repeat:
+        #    self.tradespi.sendOrder(d1)
         return
     def cancelOrder(self,d):
         self.tradespi.cancelOrder(d)
@@ -385,82 +385,18 @@ class qeCtpTrader(object):
             self.tradespi.authenticate()
         return
     def onOrder(self,d): 
-        order = self.account.orders.get(d['orderid'],None)
-        if order:
-            d['status'] = statusMap.get(d['status_ctp'],'unknown')
-            d['direction'] = directionMap.get(d['direction_ctp'],'unknown')
-            offset = offsetMap.get(d['offset_ctp'],'auto')
-            d['action'] = 'open' if offset =='open' else 'close'
-            d['closetype'] = 'auto' if offset =='open' else offset
-            d['offset'] = offset
-            d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')
-            #time = str(d['timedigit'])
-            #d['time'] = time[:8]+' '+time[8:10]+':'+time[10:12]+':'+time[12:14]+"."+time[14:]
-            d['time'] = d['orderTime']
-            if d['from'] == 'RtnOrder':
-                #d['errorid'] = order['errorid']
-                #d['errormsg'] = order['errormsg']
-                d['stratName'] = order['stratName']
-                d['instid'] = order['instid']
-                #d['incoming_orderid'] = order['incoming_orderid']
-                #d['incoming_orderid'] = d['orderid']
-            
-           # if d['status'] == KEY_STATUS_CANCEL :
-            #     print('pass '+str(d['volume'])+'-'+str(d['tradevol'])+'-'+str(d['leftvol']))
-            #     d['cancelvol'] = d['volume'] - d['tradevol']
-            #     d['leftvol'] = 0
-            # elif d['status'] == KEY_STATUS_REJECT :
-            #     d['cancelvol'] = d['volume']
-            #     d['leftvol'] = 0
-            # else:
-            #     print('pass '+str(d['volume'])+'-'+str(d['tradevol'])+'-'+str(d['leftvol']))
-            #     d['cancelvol'] = max(d['volume'] - d['tradevol'],0)
-            
-            if d['status'] in [qetype.KEY_STATUS_CANCEL, qetype.KEY_STATUS_PTPC , qetype.KEY_STATUS_REJECT]:
-                order['cancelvol'] = d['volume'] - d['tradevol']
-                order['leftvol'] = 0  
-            elif d['status'] == qetype.KEY_STATUS_ALL_TRADED :
-                order['cancelvol'] = 0
-                order['leftvol'] = 0
-            else:
-                order['cancelvol'] = 0
-                order['leftvol'] = d['volume'] - d['tradevol']
-            d['cancelvol'] = order['cancelvol']
-            d['leftvol'] = order['leftvol']  
-            d['accid'] = self.account.accid
-            d['timecond'] = order['timecond']
-            #d['sessionid'] = order['sessionid']
-            #print('errormsg',d.keys())
-            order['status'] = d['status']
-            order['tradevol'] = d['tradevol']
-            self.account.orders[d['orderid']] = order            
-            saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
-
-
-            if d['from'] == 'RtnOrder':
-                #print('onOrder callback',d)
-                self.callback(d)
-                self.account.saveOrders()
+        logger.info(f'onOrder callback {d["orderid"]} {d["status"]} {d["tradevol"]} {d["volume"]} {d["leftvol"]} {d["cancelvol"]}')
+        saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
+        if d['from'] == 'RtnOrder':
+            #print('onOrder callback',d)
+            self.callback(d)
+            self.account.saveOrders()
 #             self.account.saveToDB()
-        else:
-            logger.info('rspOrder orderid is not found '+str(d['orderid']))
-        return
     def onTrade(self,d):
 #         print('onTrade')
         #global instSetts
         order = self.account.orders.get(d['orderid'],None)
         if order or d['from'] != 'RtnTrade':
-            offset = offsetMap.get(d['offset_ctp'],'auto')
-            d['action'] = 'open' if offset =='open' else 'close'
-            d['closetype'] = 'auto' if offset =='open' else offset
-            d['offset'] = offset
-            d['dir'] = directionMap.get(d['direction_ctp'],'unknown')
-            #d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')
-            d['timedigit'] = int((d['tradedate']+d['tradetime'].replace(':','')).replace(' ',''))
-            if order and d['from'] == 'RtnTrade':
-                d['stratName'] = order['stratName']
-                d['instid'] = order['instid']
-                #d['orderid'] = order['incoming_orderid']
             
             ## test only
             # order['tradevol'] += d['tradevol']
@@ -495,7 +431,6 @@ class qeCtpTrader(object):
             if d['from'] == 'RtnTrade':
                 self.callback(d)
                 ## update position at once
-                self.account.updatePosition(trade['instid'], trade['dir'], trade['action'],trade['tradeprice'], trade['tradevol'], trade['closetype'])
                 self.account.saveToDB()
                 dirstr = 'long' if d['dir']>0 else 'short'
                 self.account.updateWinLossParas(dirstr,  d['tradeprice'], d['tradevol'], d['closetype'], order['instid'])
@@ -505,81 +440,18 @@ class qeCtpTrader(object):
 #             logger.info('rspTrade orderid is not found ')
 
     def onCancelConfirm(self,d):
-        order = self.account.orders.get(d['orderid'],None)
-        if order:
-            d['stratName'] = order['stratName']
-            d['instid'] = order['instid']
-            #d['incoming_orderid'] = order['incoming_orderid']
-            d['status'] = qetype.KEY_STATUS_CANCEL_FAILED
-            d['direction'] = order ['direction']
-            d['offset'] = order['action']
-            d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')   
-            d['tradevol'] = order['tradevol']  
-            d['cancelvol'] = order['cancelvol']
-            d['leftvol'] = order['leftvol']
-            d['volume'] = order['volume']
-            d['price'] = order['price']
+        self.callback(d)
+        saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
 
-            if d['errorid'] == 26: ## 全部已成交
-                d['cancelvol'] = 0 # order['volume'] - order['tradevol']
-                d['tradevol'] = order['volume']
-                d['leftvol'] = 0
-            ## add keys            
-            d['action'] = order['action']
-            d['closetype'] = order['closetype']
-            d['accid'] = self.account.accid
-            d['timecond'] = order['timecond']
-            d['time'] = datetime.now().strftime("%H:%M:%S")
-            self.callback(d)
-            saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
-            order['status'] = qetype.KEY_STATUS_CANCEL_FAILED
-            order['cancelvol'] = d['cancelvol']
-            order['leftvol'] = d['leftvol']
-            order['tradevol'] = d['tradevol']
-            order['errorid'] = d['errorid']
-            order['errormsg'] = d['errormsg']
-            self.account.orders[d['orderid']] = order
 
 
 
 
     def onOrderError(self,d):
-        order = self.account.orders.get(d['orderid'],None)
-        if order:
-            d['stratName'] = order['stratName']
-            d['instid'] = order['instid']
-            #d['incoming_orderid'] = order['incoming_orderid']      
-            d['status'] = qetype.KEY_STATUS_REJECT
-            d['direction'] = directionMap.get(d['direction_ctp'],'unknown')
-            d['offset'] = offsetMap.get(d['offset_ctp'],'unknown')
-            d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')   
-            d['tradevol'] = 0    
-            d['cancelvol'] = d['volume']
-            d['leftvol'] = 0
-            ## add keys            
-            d['action'] = order['action']
-            d['closetype'] = order['closetype']
-            d['accid'] = self.account.accid
-            d['timecond'] = order['timecond']
-            d['time'] = datetime.now().strftime("%H:%M:%S")
-            
-            
-            
-            self.callback(d)
-            order['errorid'] = d['errorid']
-            order['errormsg'] = d['errormsg']
-            order['status'] = qetype.KEY_STATUS_REJECT
-            order['tradevol']  = 0
-            order['cancelvol'] = d['volume']
-            order['leftvol'] = 0  
-            #print('error errormsg',order.keys(),d.keys())
-            saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
-            self.account.orders[d['orderid']] = order
-            
-            
-        else:
-            logger.info('rspOrderErr orderid is not found '+str(d['orderid']))
-        return
+        self.callback(d)
+        saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
+        #self.account.orders[d['orderid']] = order
+
     def update(self,d):
         self.tradespi.dataSlide[d['instid']] = d['data']
         self.account.dataSlide[d['instid']] = copy.copy(d['data'])
@@ -1172,7 +1044,28 @@ class CTradeSpi(TraderApiWrapper):
                 else:
                     d['timecond'] = 'GFD'
 
+                d['status'] = statusMap.get(d['status_ctp'],'unknown')
+
+                if d['status'] in [qetype.KEY_STATUS_CANCEL, qetype.KEY_STATUS_PTPC , qetype.KEY_STATUS_REJECT]:
+                    d['cancelvol'] = d['volume'] - d['tradevol']
+                    d['leftvol'] = 0  
+                elif d['status'] == qetype.KEY_STATUS_ALL_TRADED :
+                    d['cancelvol'] = 0
+                    d['leftvol'] = 0
+                else:
+                    d['cancelvol'] = 0
+                    d['leftvol'] = d['volume'] - d['tradevol']                  
+
+
+                d['direction'] = directionMap.get(d['direction_ctp'],'unknown')
+                offset = offsetMap.get(d['offset_ctp'],'auto')
+                d['action'] = 'open' if offset =='open' else 'close'
+                d['closetype'] = 'auto' if offset =='open' else offset
+                d['offset'] = offset
+                d['accid'] = self.account.accid
                 self.account.orders[d['orderid']] = d
+                d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')
+                d['time'] = d['orderTime']                
                 #print("QryOrder:",d)
                 self.tqueue.put(d)
             if bIsLast:
@@ -1206,6 +1099,14 @@ class CTradeSpi(TraderApiWrapper):
                 d['tradedate'] = pTrade.TradeDate
                 d['from'] = 'QryTrade'
                 d['stratName'] = self.account.order_stg_table.get(str(d['orderid']),'')
+                offset = offsetMap.get(d['offset_ctp'],'auto')
+                d['action'] = 'open' if offset =='open' else 'close'
+                d['closetype'] = 'auto' if offset =='open' else offset
+                d['offset'] = offset
+                d['dir'] = directionMap.get(d['direction_ctp'],'unknown')
+                #d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')
+                d['timedigit'] = int((d['tradedate']+d['tradetime'].replace(':','')).replace(' ',''))
+
                 #print("RspTrade:",d)
                 self.tqueue.put(d)
             if bIsLast:
@@ -1278,8 +1179,40 @@ class CTradeSpi(TraderApiWrapper):
         else:
             d['errormsg'] = ''
             d['errorid'] = 0
-    
-        #print('rtnOrder', d['frontid'], d['sessionid'],d['orderid'])
+
+        d['status'] = statusMap.get(d['status_ctp'],'unknown')
+        d['direction'] = directionMap.get(d['direction_ctp'],'unknown')
+        offset = offsetMap.get(d['offset_ctp'],'auto')
+        d['action'] = 'open' if offset =='open' else 'close'
+        d['closetype'] = 'auto' if offset =='open' else offset
+        d['offset'] = offset
+        d['leftvol'] = 0
+        d['cancelvol'] = 0
+        order = self.account.orders.get(d['orderid'],None)
+        if order is not None:
+            order['errorid'] = d['errorid']
+            order['errormsg'] = d['errormsg']
+            order['status'] = d['status']
+            if d['status'] in [qetype.KEY_STATUS_CANCEL, qetype.KEY_STATUS_PTPC , qetype.KEY_STATUS_REJECT]:
+                order['cancelvol'] = d['volume'] - d['tradevol']
+                order['leftvol'] = 0  
+            elif d['status'] == qetype.KEY_STATUS_ALL_TRADED :
+                order['cancelvol'] = 0
+                order['leftvol'] = 0
+            else:
+                order['cancelvol'] = 0
+                order['leftvol'] = d['volume'] - d['tradevol']  
+            order['tradevol'] = d['tradevol']
+            self.account.orders[d['orderid']] = order                  
+            d['stratName'] = order['stratName']
+            d['instid'] = order['instid']
+            d['cancelvol'] = order['cancelvol']
+            d['leftvol'] = order['leftvol']  
+            d['accid'] = self.account.accid
+            d['timecond'] = order['timecond']        
+        d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')
+        d['time'] = d['orderTime']
+        #print('OnRtnOrder order:',order, 'd:',d)
         self.tqueue.put(d)
         return
     def OnRspOrderInsert(self, pInputOrder, pRspInfo, nRequestID, bIsLast) -> None:
@@ -1300,6 +1233,7 @@ class CTradeSpi(TraderApiWrapper):
         d['price'] = pInputOrder.LimitPrice
         d['errorid'] = pRspInfo.ErrorID
         d['errormsg'] = pRspInfo.ErrorMsg
+
         
         ## add keys
         d['status_ctp'] = ''
@@ -1308,7 +1242,34 @@ class CTradeSpi(TraderApiWrapper):
         d['date'] = ''
         d['torderid'] = ''
         d['from'] = 'OnRspOrderInsert'
-        
+        d['accid'] = self.account.accid
+        d['status'] = qetype.KEY_STATUS_REJECT
+        d['direction'] = directionMap.get(d['direction_ctp'],'unknown')
+        d['offset'] = offsetMap.get(d['offset_ctp'],'unknown')
+        d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')   
+        d['tradevol'] = 0    
+        d['cancelvol'] = d['volume']
+        d['leftvol'] = 0
+        if d['errorid'] == 26: ## 全部已成交
+            d['cancelvol'] = 0 # order['volume'] - order['tradevol']
+            d['tradevol'] = d['volume']
+            d['leftvol'] = 0
+        if d['orderid'] in self.account.orders:
+            order = self.account.orders[d['orderid']]
+            order['errorid'] = d['errorid']
+            order['errormsg'] = d['errormsg']
+            order['status'] = qetype.KEY_STATUS_CANCEL_FAILED
+            order['cancelvol'] = d['cancelvol']
+            order['leftvol'] = d['leftvol']
+            order['tradevol'] = d['tradevol']
+            self.account.orders[d['orderid']] = order            
+            d['stratName'] = order['stratName']
+            d['instid'] = order['instid']
+            ## add keys            
+            d['action'] = order['action']
+            d['closetype'] = order['closetype']
+            d['timecond'] = order['timecond']
+        d['time'] = datetime.now().strftime("%H:%M:%S")
         self.tqueue.put(d)
         if pRspInfo.ErrorID == 0:
             logger.info(f"OnRspOrderInsert orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID},dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
@@ -1335,6 +1296,38 @@ class CTradeSpi(TraderApiWrapper):
         d['date'] = ''
         d['torderid'] = ''
         d['from'] = 'OnErrRtnOrderInsert'
+
+        d['accid'] = self.account.accid
+        d['status'] = qetype.KEY_STATUS_REJECT
+        d['direction'] = directionMap.get(d['direction_ctp'],'unknown')
+        d['offset'] = offsetMap.get(d['offset_ctp'],'unknown')
+        d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')   
+        d['tradevol'] = 0    
+        d['cancelvol'] = d['volume']
+        d['leftvol'] = 0
+        # if d['errorid'] == 26: ## 全部已成交
+        #     d['cancelvol'] = 0 # order['volume'] - order['tradevol']
+        #     d['tradevol'] = order['volume']
+        #     d['leftvol'] = 0
+        if d['orderid'] in self.account.orders:
+            order = self.account.orders[d['orderid']]
+            order['errorid'] = d['errorid']
+            order['errormsg'] = d['errormsg']
+            order['status'] = qetype.KEY_STATUS_CANCEL_FAILED
+            order['cancelvol'] = d['cancelvol']
+            order['leftvol'] = d['leftvol']
+            order['tradevol'] = d['tradevol']
+            self.account.orders[d['orderid']] = order
+
+            ## add keys            
+            d['action'] = order['action']
+            d['closetype'] = order['closetype']
+            d['timecond'] = order['timecond']
+            d['stratName'] = order['stratName']
+            d['instid'] = order['instid']
+        d['time'] = datetime.now().strftime("%H:%M:%S")
+
+
         self.tqueue.put(d)
         if pRspInfo.ErrorID == 0:
             logger.info(f"OnErrRtnOrderInsert orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID},dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
@@ -1346,11 +1339,47 @@ class CTradeSpi(TraderApiWrapper):
         d['type'] = qetype.KEY_ON_CANCEL_CONFIRM    
         d['orderid'] = int(pOrderAction.OrderRef)
         d['status'] = qetype.KEY_STATUS_CANCEL_FAILED
-        # d['volume'] = pOrderAction.VolumeTotalOriginal
+        #d['volume'] = pOrderAction.VolumeTotalOriginal
         #d['offset_ctp'] = pOrderAction.CombOffsetFlag
         # d['price'] = pOrderAction.LimitPrice
         d['errorid'] = pRspInfo.ErrorID
         d['errormsg'] = pRspInfo.ErrorMsg
+
+        if self.account.orders.get(d['orderid'], None) :
+            order = self.account.orders[d['orderid']]            
+            if d['errorid'] == 26: ## 全部已成交
+                d['cancelvol'] = 0 # order['volume'] - order['tradevol']
+                d['tradevol'] = order['volume']
+                d['leftvol'] = 0
+
+                    ## add keys            
+
+            order['status'] = qetype.KEY_STATUS_CANCEL_FAILED
+            order['cancelvol'] = d['cancelvol']
+            order['leftvol'] = d['leftvol']
+            order['tradevol'] = d['tradevol']
+            order['errorid'] = d['errorid']
+            order['errormsg'] = d['errormsg']
+            self.account.orders[d['orderid']] = order
+            d['volume'] = order['volume']
+
+            d['stratName'] = order['stratName']
+            d['instid'] = order['instid']
+                #d['incoming_orderid'] = order['incoming_orderid']
+            d['status'] = qetype.KEY_STATUS_CANCEL_FAILED
+            d['direction'] = order ['direction']
+            d['offset'] = order['action']
+            d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')   
+            d['tradevol'] = order['tradevol']  
+            d['cancelvol'] = order['cancelvol']
+            d['leftvol'] = order['leftvol']
+            d['price'] = order['price']        
+            d['action'] = order['action']
+            d['closetype'] = order['closetype']
+            d['accid'] = self.account.accid
+            d['timecond'] = order['timecond']
+            d['time'] = datetime.now().strftime("%H:%M:%S")
+
         self.tqueue.put(d)
 #       print('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
         logger.error('CancelOrder failed orderID='+str(pOrderAction.OrderRef)+',ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
@@ -1374,6 +1403,19 @@ class CTradeSpi(TraderApiWrapper):
         d['tradetime'] = pTrade.TradeTime
         d['tradedate'] = pTrade.TradeDate
         d['from'] = 'RtnTrade'
+        offset = offsetMap.get(d['offset_ctp'],'auto')
+        d['action'] = 'open' if offset =='open' else 'close'
+        d['closetype'] = 'auto' if offset =='open' else offset
+        d['offset'] = offset
+        d['dir'] = directionMap.get(d['direction_ctp'],'unknown')
+        #d['timedigit'] = int(datetime.now().strftime("%Y%m%d%H%M%S")+'001')
+        d['timedigit'] = int((d['tradedate']+d['tradetime'].replace(':','')).replace(' ',''))
+        if self.account.orders.get(d['orderid'], None) :
+            order = self.account.orders[d['orderid']]    
+            d['stratName'] = order['stratName']
+            #d['instid'] = order['instid']
+                #d['orderid'] = order['incoming_orderid']
+            self.account.updatePosition(d['instid'], d['dir'], d['action'],d['tradeprice'], d['tradevol'], d['closetype'])
         self.tqueue.put(d)
         return
 

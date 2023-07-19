@@ -49,8 +49,8 @@ def transExID2Context(exID):
         return "ZCE"
     elif exID == "CFFEX":
         return 'CCF'
-    elif exID == 'GFEX':
-        return "GFE"
+    elif exID == "GFEX":
+        return 'GFE'    
     else:
         return exID
 
