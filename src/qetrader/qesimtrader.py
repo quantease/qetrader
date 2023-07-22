@@ -813,6 +813,8 @@ class QEsimtrader(object):
         elif d['type'] == qetype.KEY_MARKET_DATA:
             #print('trader mdata')
             self.update(d,d['instid'])
+        elif d['type'] == qetype.KEY_ON_CROSS_DAY:
+            self.crossday(d)    
         elif d['type'] == qetype.KEY_MARKET_MULTIDATA:
             self.update(d['data'][0],d['instid'])    
         elif d['type'] == qetype.KEY_TIMER_SIMU:
@@ -835,7 +837,7 @@ class QEsimtrader(object):
 	            elif d['stratName'] != 'force_close':
 	                logger.error('callback '+str(d['stratName'])+' is not found')
 
-    def crossday(self):
+    def crossday(self,d):
         #self.g_order_id = self.g_benchmark
         logger.info('simTrader.crossday')
         self.instVolume = {}
@@ -843,6 +845,8 @@ class QEsimtrader(object):
         #self.g_order_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
         #self.g_trade_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
         simuaccount.crossday()
+        simuaccount.setTradingDay(d['tradingDay'])
+        self.curday = d['tradingDay']
        
         
         
@@ -856,8 +860,8 @@ class QEsimtrader(object):
                 #print("Invalid data time",curtime, d['instid'])
             #    return
             if d['data']['tradingday'] != self.curday:
-                if self.curday != '':
-                    self.crossday()
+                #if self.curday != '':
+                #    self.crossday()
                 self.curday = d['data']['tradingday']
             #print("update to matchTrade")
             self.matchTrade(instid)

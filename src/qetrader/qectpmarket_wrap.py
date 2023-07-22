@@ -432,6 +432,9 @@ class CFtdcMdSpi(MdApiWrapper):
                     saveMarketToDB(d['instid'], d['data']['timedigit'], datastr )
                 if self.runmode == 'simu':
                     simuqueue.put(cd)
+            elif d['type'] == qetype.KEY_ON_CROSS_DAY:
+                if self.runmode == 'simu':
+                    simuqueue.put(cd)               
                 else:
                     queues = getInstTraderQueue(d['instid'])
                     for queue in queues:

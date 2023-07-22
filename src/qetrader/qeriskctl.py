@@ -54,6 +54,8 @@ class riskControl:
             
     def setTradingDay(self, tradingday): 
         self.tradingday = tradingday
+        self.load(tradingday)
+        print('Riskctl setTradingDay', tradingday)
     
     def load(self, tradingday):
         self.tradingday = tradingday
@@ -144,7 +146,7 @@ class riskControl:
 
     def getBigOrderThreshold(self, instid):
         prod_id = self.transfer(instid)
-        return self.maxnumorder[prod_id]*self.bigvolpercent[prod_id]
+        return self.maxnumorder.get(prod_id,10000)*self.bigvolpercent.get(prod_id,1)
 
 
     def transfer(self, instid):

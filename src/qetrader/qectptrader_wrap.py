@@ -14,7 +14,7 @@ from .qectpmarket_wrap import checkMarketTime
 from .qecontext import transInstID2Real,transInstID2Context,transExID2Context
 import copy
 from threading import Timer
-from .qeglobal import  get_Instrument_volmult
+from .qeglobal import  get_Instrument_volmult, g_dataSlide
 from .qestatistics import g_stat
 from .qeglobal import setPositionLoaded
 
@@ -217,7 +217,7 @@ class qeCtpTrader(object):
             self.sendOrder(d)
         elif d['type'] == qetype.KEY_CANCEL_ORDER:
             self.cancelOrder(d)
-        elif d['type'] == qetype.KEY_MARKET_DATA:
+        elif d['type'] == qetype.KEY_ON_CROSS_DAY:
             self.update(d)
         elif d['type'] == qetype.KEY_ON_ORDER:
             self.onOrder(d)
@@ -453,24 +453,26 @@ class qeCtpTrader(object):
         #self.account.orders[d['orderid']] = order
 
     def update(self,d):
-        self.tradespi.dataSlide[d['instid']] = d['data']
-        self.account.dataSlide[d['instid']] = copy.copy(d['data'])
-        if self.account.tradingDay == '':
-            self.account.loadFromDB(d['data']['tradingday'])
+        #self.tradespi.dataSlide[d['instid']] = d['data']
+        #self.account.dataSlide[d['instid']] = copy.copy(d['data'])
+        # if self.account.tradingDay == '':
+        #     self.account.loadFromDB(d['data']['tradingday'])
+        self.crossday()
+        self.account.setTradingDay( d['tradingday'])
+        self.tradespi.curday = d['tradingday']
         
-        
-        if d['data']['tradingday'] != self.tradespi.curday:
-            if self.tradespi.curday != '':
-                self.crossday()
-            self.tradespi.curday = d['data']['tradingday']
-        self.account.current_timedigit = d['data']['timedigit']
-        self.account.setTradingDay( d['data']['tradingday'])
-        if self.tradespi.lasttime == 0:
-            self.tradespi.lasttime = d['data']['timedigit']
-        elif abs(d['data']['timedigit'] - self.tradespi.lasttime) > 2500:
-            self.tradespi.lasttime = d['data']['timedigit']
-            self.account.saveToDB()
-        return
+        # if d['data']['tradingday'] != self.tradespi.curday:
+        #     if self.tradespi.curday != '':
+        #         self.crossday()
+        #     self.tradespi.curday = d['data']['tradingday']
+        # self.account.current_timedigit = d['data']['timedigit']
+        # self.account.setTradingDay( d['data']['tradingday'])
+        # if self.tradespi.lasttime == 0:
+        #     self.tradespi.lasttime = d['data']['timedigit']
+        # elif abs(d['data']['timedigit'] - self.tradespi.lasttime) > 2500:
+        #     self.tradespi.lasttime = d['data']['timedigit']
+        #     self.account.saveToDB()
+        # return
     def crossday(self):
         #self.tradespi.g_order_id = int(datetime.now().strftime('%H%M%S'))*100000
         #self.account.orders = {}
@@ -779,6 +781,19 @@ class CTradeSpi(TraderApiWrapper):
             #self.mapTable[self.account.g_order_id] = order['incoming_orderid']
             #self.mapTable[order['incoming_orderid']] = self.account.g_order_id
             #order['orderid'] = self.account.g_order_id
+            if order['ordertype'] == "market":
+                tick = g_dataSlide.get(order['instid'], None) #self.dataSlide[order['instid']]
+                if tick:
+                    if order['direction'] == 1:
+                        order_price = tick['upperlimit']
+                    else:
+                        order_price = tick['lowerlimit']
+                else:
+                    #order_price = order['price']
+                    logger.error('没有tick数据无法下市价单')    
+                    return    
+            else:
+                order_price = order['price']
             orderid = order['orderid']
             self.account.orders[orderid] = order
             self.reqID += 1
@@ -807,14 +822,7 @@ class CTradeSpi(TraderApiWrapper):
 #             print('1'+str(exchangeMap.get(exID,''))+'2'+str(priceTypeMapReverse.get(order['ordertype'],'')))
 #             print(str(offsetMapReverse.get(order_offset,''))+str(directionMapReverse.get(order['direction'],'')))
 #             print(self.g_order_id)
-            if order['ordertype'] == "market":
-                tick = self.dataSlide[order['instid']]
-                if order['direction'] == 1:
-                    order_price = tick['upperlimit']
-                else:
-                    order_price = tick['lowerlimit']
-            else:
-                order_price = order['price']
+
             
             orderfield= InputOrderField(ContingentCondition = api.THOST_FTDC_CC_Immediately,TimeCondition = api.THOST_FTDC_TC_GFD,VolumeCondition = api.THOST_FTDC_VC_AV,OrderPriceType = api.THOST_FTDC_OPT_LimitPrice,Direction = api.THOST_FTDC_D_Buy,ForceCloseReason = api.THOST_FTDC_FCC_NotForceClose)
             orderfield.BrokerID=self.broker
@@ -1353,7 +1361,10 @@ class CTradeSpi(TraderApiWrapper):
                 d['leftvol'] = 0
 
                     ## add keys            
-
+            else:
+                d['cancelvol'] = 0
+                d['tradevol'] = order['tradevol']
+                d['leftvol'] = order['leftvol']
             order['status'] = qetype.KEY_STATUS_CANCEL_FAILED
             order['cancelvol'] = d['cancelvol']
             order['leftvol'] = d['leftvol']
@@ -2591,10 +2602,10 @@ def runQERealTraderProcess(user,account, classname,strats,traderqueue,user_setti
     ctptrader.tradespi.Init()
     print(f"CTP API TD version = {ctptrader.tradespi.GetApiVersion()}")
     ctptrader.evalmode = evalmode
-    if evalmode:
-        tday = getLocalTradingDay()
-        ctptrader.account.setTradingDay(tday)
-        ctptrader.account.loadFromDB(tday)
+    #if evalmode:
+    tday = getLocalTradingDay()
+    ctptrader.account.setTradingDay(tday)
+    ctptrader.account.loadFromDB(tday)
     ctptrader.callTimer()
     ctptrader.TraderProcess()
     ctptrader.tradespi.Join()

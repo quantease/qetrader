@@ -256,5 +256,121 @@ def getPlatform():
 
 
 
-        
+def getProdTime(instid):
+    prodTimes = {'A': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'AG': {'morning': ['0000', '0230'], 'night': ['2100', '2359']},
+             'AL': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
+             'AP': {'morning': ['', ''], 'night': ['', '']},
+             'AO': {'morning': ['', ''], 'night': ['', '']},
+             'AU': {'morning': ['0000', '0230'], 'night': ['2100', '2359']},
+             'B': {'morning': ['', ''], 'night': ['2100', '2300']}, 'BB': {'morning': ['', ''], 'night': ['', '']},
+             'BC': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
+             'BU': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'C': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'CF': {'morning': ['', ''], 'night': ['2100', '2300']}, 'CJ': {'morning': ['', ''], 'night': ['', '']},
+             'CS': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'CU': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
+             'CY': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'EB': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'EG': {'morning': ['', ''], 'night': ['2100', '2300']}, 'FB': {'morning': ['', ''], 'night': ['', '']},
+             'FG': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'FU': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'HC': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'I': {'morning': ['', ''], 'night': ['2100', '2300']}, 'IC': {'morning': ['', ''], 'night': ['', '']},
+             'IO': {'morning': ['', ''], 'night': ['', '']}, 'IF': {'morning': ['', ''], 'night': ['', '']},
+             'MO': {'morning': ['', ''], 'night': ['', '']}, 'IM': {'morning': ['', ''], 'night': ['', '']},
+             'HO': {'morning': ['', ''], 'night': ['', '']}, 'IH': {'morning': ['', ''], 'night': ['', '']},
+             'J': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'JD': {'morning': ['', ''], 'night': ['', '']}, 'JM': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'JR': {'morning': ['', ''], 'night': ['', '']}, 'L': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'LH': {'morning': ['', ''], 'night': ['', '']}, 'LR': {'morning': ['', ''], 'night': ['', '']},
+             'LU': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'M': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'MA': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'NI': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
+             'NR': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'OI': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'P': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'PB': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
+             'PF': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'PG': {'morning': ['', ''], 'night': ['2100', '2300']}, 'PK': {'morning': ['', ''], 'night': ['', '']},
+             'PM': {'morning': ['', ''], 'night': ['', '']}, 'PP': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'RB': {'morning': ['', ''], 'night': ['2100', '2300']}, 'RI': {'morning': ['', ''], 'night': ['', '']},
+             'RM': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'RR': {'morning': ['', ''], 'night': ['2100', '2300']}, 'RS': {'morning': ['', ''], 'night': ['', '']},
+             'RU': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'SA': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'SC': {'morning': ['0000', '0230'], 'night': ['2100', '2359']},
+             'SF': {'morning': ['', ''], 'night': ['', '']}, 'SM': {'morning': ['', ''], 'night': ['', '']},
+             'SN': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
+             'SP': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'SR': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'SS': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
+             'T': {'morning': ['', ''], 'night': ['', '']},
+             'TA': {'morning': ['', ''], 'night': ['', '']},
+             'TF': {'morning': ['', ''], 'night': ['', '']},
+             'TL': {'morning': ['', ''], 'night': ['', '']},
+             'TS': {'morning': ['', ''], 'night': ['', '']}, 
+             'UR': {'morning': ['', ''], 'night': ['', '']},
+             'V': {'morning': ['', ''], 'night': ['2100', '2300']}, 'WH': {'morning': ['', ''], 'night': ['', '']},
+             'WR': {'morning': ['', ''], 'night': ['', '']}, 'Y': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'ZC': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'ZN': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
+             'SGE': {'morning': ['0000', '0230'], 'night': ['2000', '2359']},
+             'SSE': {'morning': ['',''],'night':['','']},
+             'SZE': {'morning':['',''],'night':['','']},
+             'SI': {'morning': ['', ''], 'night': ['', '']},
+             'ME': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'RO': {'morning': ['', ''], 'night': ['2100', '2300']}, 
+             'TC': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'WS': {'morning': ['', ''], 'night': ['2100', '2300']},
+             'ER': {'morning': ['', ''], 'night': ['2100', '2300']}}
+    getProd = lambda x: x[0] if x[1].isdigit() else x[:2]
+    prodid = getProd(instid).upper()
+    exid = instid.split('.')[1].upper()
+    if exid == 'SGE':
+        prodid = 'SGE'
+    res = {}
+    if prodid in prodTimes.keys():
+        pt = prodTimes[prodid]
+        if pt['night'][0] == '':
+            res['night'] = []
+            res['morning'] = []
+        elif pt['morning'][0] != '':
+            res['night'] = [(pt['night'][0],'2359')]
+            res['morning'] = [('0000',pt['morning'][1])]
+        else:
+            res['night'] = [(pt['night'][0],pt['night'][1])]
+            res['morning'] = []
+        if exid in ['CCF','SZE','SSE']:
+            res['daytime'] = [('0930','1130')]
+            res['daytime'] += [('1300', '1515')] if prodid[0] == 'T' else [('1300', '1500')]
+        elif exid == 'SGE':
+            res['daytime']= [('0900', '1500')]
+        else:
+            res['daytime'] = [('0900', '1015'),('1030', '1130'),('1330','1500')]
+        return res
+    else:
+        return {}
+
+
+def getProdOpenSeconds(timedict):
+    #pt = getProdTime(instid)
+    pt = timedict
+    ret = {}
+    today = datetime.today()
+    for key in pt.keys():
+        if len(pt[key]) == 0:
+            ret[key] = [0]
+            continue
+        for tf in pt[key]:
+            [start, end] = tf
+            start = today.strftime('%Y%m%d') + start+'00'
+            end = today.strftime('%Y%m%d') + end+'00'
+            diff = (datetime.strptime(end, '%Y%m%d%H%M%S') - datetime.strptime(start, '%Y%m%d%H%M%S')).seconds
+            if not key in ret.keys():
+                ret[key] = [diff]
+            else:
+                ret[key].append(diff)
+    return ret        
     #print('dataSlide',dataSlide)    
