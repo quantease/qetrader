@@ -254,7 +254,7 @@ class qeCtpTrader(object):
     def callback(self,d):
         #global tstrats
         #print('callback',d)
-        if d['stratName'].replace(' ','') != '' and d['stratName'] != 'algoex':
+        if 'stratName' in d and d['stratName'].replace(' ','') != '' and d['stratName'] != 'algoex':
             #print('callback',d['stratName'],self.strats)
             if self.strats:
                 stratQueue = self.strats.get(d['stratName'],None)
@@ -426,8 +426,6 @@ class qeCtpTrader(object):
             #    print('unresolved trade', d['orderid'])
             trade['accid'] = self.account.accid
             saveTradeDatarealToDB(self.account.user, self.account.token, self.account.tradingDay, trade )
-            print(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
-            logger.info(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
             if d['from'] == 'RtnTrade':
                 self.callback(d)
                 ## update position at once
@@ -1428,6 +1426,9 @@ class CTradeSpi(TraderApiWrapper):
                 #d['orderid'] = order['incoming_orderid']
             self.account.updatePosition(d['instid'], d['dir'], d['action'],d['tradeprice'], d['tradevol'], d['closetype'])
         self.tqueue.put(d)
+        print(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
+        logger.info(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
+
         return
 
     # 请求查询资金账户响应

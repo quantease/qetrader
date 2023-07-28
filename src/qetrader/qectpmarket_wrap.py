@@ -16,7 +16,7 @@ from .qecontext import transInstID2Real,transInstID2Context
 ##from qesimtrader import marketReadyNotice
 from .qeredisdb import saveMarketToDB, resetMarketData
 from .qestatistics import getPrevTradingDay
-from .qeglobal import getInstTraderQueue, getClassInstIDs
+from .qeglobal import getInstTraderQueue, getClassInstIDs, getAccidTraderQueue
 from .qeinterface import simuqueue
 from qesdk import get_valid_instID
 from .qeglobal import g_dataSlide
@@ -53,21 +53,15 @@ def getValidPrice(price):
         
 
 
-def timer_callback():
-    global timer, mduserspi
-    logger.debug('timer callback')
-    now = datetime.now()
-    if checkMarketTime(now) :
-        '''if mduserspi and len(mduserspi.subID) > 0:
-            subID = mduserspi.subID
-            mduserspi.tapi.SubscribeMarketData([id.encode('utf-8') for id in subID],len(subID))
-        else:
-            print("No intrumentIDs be subscribed")
-        '''
-        if mduserspi and not mduserspi.bFirstLogin and not mduserspi.connected:
-            mduserspi.login()    
-    timer = threading.Timer(30, timer_callback)
-    timer.start()
+# def timer_callback():
+#     global timer, mduserspi
+#     logger.debug('timer callback')
+#     now = datetime.now()
+#     if checkMarketTime(now) :
+#         if mduserspi and not mduserspi.bFirstLogin and not mduserspi.connected:
+#             mduserspi.login()    
+#     timer = threading.Timer(30, timer_callback)
+#     timer.start()
         
    
     
@@ -75,9 +69,10 @@ def checkMarketTime(now):
     global g_mode_724
     if g_mode_724:
         return True
-    if (now.hour > 3 and now.hour < 8) or (now.hour >= 16 and now.hour <20) or (now.hour==8 and now.minute < 30) or (now.hour==20 and now.minute < 30) :
+    curminu = now.hour *100 + now.minute    
+    if (curminu > 230 and curminu < 850) or (curminu >= 1530 and curminu <2050)  :
         return False
-    elif now.weekday ==6 or (now.weekday==5 and now.hour > 3) or (now.weekday == 0 and now.hour < 8):
+    elif now.weekday ==6 or (now.weekday==5 and curminu > 240) or (now.weekday == 0 and curminu < 850):
         return False
     return True 
   
@@ -100,35 +95,35 @@ def marketLogout():
     mduserspi.logout()
 
 
-'''
-def md_register_strategy(stratName, strat):    
-    global stratGroup, mduserspi, curInstSet ,instExIDs, subID  
-    now = datetime.now()
-    logger.info(f'register {stratName}')
-    if not stratName in stratGroup:
-        stratGroup[stratName] = strat
-        curInstSet.update(strat.instid)
-        instIDs = []
-        for i in range(len(strat.instid_ex)):
-            inst = strat.instid_ex[i]
-#             print(inst)
-            if not inst in subID:
-                subID.append(inst)
-                instIDs.append(inst)
-            if not inst in instExIDs:
-                instExIDs[inst] = strat.exID[i]
-        if len(instIDs) > 0:
-            before_time = getPrevTradingDay(now) + '160000000'    
-            for inst in instIDs:
-                resetMarketData(inst, before_time)
-            if mduserspi:
-                mduserspi.SubscribeMarketData(instIDs)
-                print("subscribe ", instIDs)
-            else:
-                logger.info('mduserspi is not ready')
+
+# def md_register_strategy(stratName, strat):    
+#     global stratGroup, mduserspi, curInstSet ,instExIDs, subID  
+#     now = datetime.now()
+#     logger.info(f'register {stratName}')
+#     if not stratName in stratGroup:
+#         stratGroup[stratName] = strat
+#         curInstSet.update(strat.instid)
+#         instIDs = []
+#         for i in range(len(strat.instid_ex)):
+#             inst = strat.instid_ex[i]
+# #             print(inst)
+#             if not inst in subID:
+#                 subID.append(inst)
+#                 instIDs.append(inst)
+#             if not inst in instExIDs:
+#                 instExIDs[inst] = strat.exID[i]
+#         if len(instIDs) > 0:
+#             before_time = getPrevTradingDay(now) + '160000000'    
+#             for inst in instIDs:
+#                 resetMarketData(inst, before_time)
+#             if mduserspi:
+#                 mduserspi.SubscribeMarketData(instIDs)
+#                 print("subscribe ", instIDs)
+#             else:
+#                 logger.info('mduserspi is not ready')
             
-            #time.sleep(1)    
-'''
+#             #time.sleep(1)    
+
 
        
 
@@ -436,7 +431,7 @@ class CFtdcMdSpi(MdApiWrapper):
                 if self.runmode == 'simu':
                     simuqueue.put(cd)               
                 else:
-                    queues = getInstTraderQueue(d['instid'])
+                    queues = getAccidTraderQueue(0) #getInstTraderQueue(d['instid'])
                     for queue in queues:
                         queue.put(cd)
                     #print('put tequeue',d['data']['timedigit'])
@@ -446,7 +441,19 @@ class CFtdcMdSpi(MdApiWrapper):
         except Exception as e:
             logger.error(f"CTP market callback error {e}",exc_info=True )  
             
-        
+    def callTimer(self):
+        self.timer = threading.Timer(30, self.timerCallback)
+        self.timer.start()   
+
+    def timerCallback(self):
+        logger.debug('timer callback')
+        now = datetime.now()
+        #print('timer callback', checkMarketTime(now), self.bFirstLogin, self.connected)
+        if checkMarketTime(now) :
+            if not self.bFirstLogin and not self.connected:
+                self.login()    
+        self.callTimer()
+
     def register(self):
         #global curInstSet ,instExIDs, subID   
         now = datetime.now()
@@ -632,14 +639,16 @@ def runQEMarketProcess(user, passwd, strats,runmode, setting_dict, mode_724=Fals
             if name != 'async':
                 mduserspi.stratInstances[name] = strats[name]['strat']
     #mduserspi.recmode = True if strats['async'] and strats['recmode'] else False
+    g_mode_724 = mode_724    
     mduserspi.runmode = runmode
     mduserspi.initCallback(user,passwd) 
     mduserspi.register()
-    g_mode_724 = mode_724
+    mduserspi.callTimer()
 
     pass_flag = True
-    timer = threading.Timer(30, timer_callback)
-    timer.start()
+    # timer = threading.Timer(30, timer_callback)
+    # timer.start()
+
     
     if setting_dict is not None:
         mduserspi.initCallback( setting_dict['investorid'],setting_dict['password'])
