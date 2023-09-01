@@ -399,10 +399,10 @@ class CFtdcMdSpi(MdApiWrapper):
         try:
         
             instSave = False
-        
+            cd = copy.copy(d)        
             if d['type'] == qetype.KEY_MARKET_DATA:
                 datastr = json.dumps(d['data'])
-                cd = copy.copy(d)
+
                
                 if self.strats['async'] and self.recmode:
                     self.strats['queue'].put(cd)

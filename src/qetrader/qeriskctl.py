@@ -53,9 +53,10 @@ class riskControl:
             saveRiskCtlRecord(self.user, self.token, self.tradingday, riskdata, runmode = self.runmode)
             
     def setTradingDay(self, tradingday): 
-        self.tradingday = tradingday
-        self.load(tradingday)
-        print('Riskctl setTradingDay', tradingday)
+        if self.tradingday != tradingday:
+            self.tradingday = tradingday
+            self.load(tradingday)
+            print('Riskctl setTradingDay', tradingday)
     
     def load(self, tradingday):
         self.tradingday = tradingday

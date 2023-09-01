@@ -288,7 +288,7 @@ class qeStratProcess:
                             self.handleTrade(d,context)  
                             #print('on_Trade')
                         elif d['type'] == qetype.KEY_ON_ORDER_ERROR or d['type'] == qetype.KEY_ON_CANCEL_CONFIRM:
-                            #print('stratprocess on order error')
+                            print('stratprocess on order error')
                             self.handleOrder(d,context)
                         elif d['type'] == qetype.KEY_TIMER_PROCESS:
                             #logger.info(f'strat minu report:{self.info_time}')

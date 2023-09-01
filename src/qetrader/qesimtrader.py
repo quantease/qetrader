@@ -924,7 +924,7 @@ class QEsimtrader(object):
             #self.mapTable[order['incoming_orderid']] = simuaccount.g_order_id
             #order['orderid'] = simuaccount.g_order_id
             
-            if order['status'] == 'committed':
+            if order['status'] == 'loaded':
                 order['status'] = qetype.KEY_STATUS_PENDING
             elif order['status'] == 'failed':
                 order['status'] =qetype.KEY_STATUS_REJECT
@@ -1033,14 +1033,20 @@ class QEsimtrader(object):
         tradevol = 0
         #debug_flag = False
         
-        
+        if isinstance(instid, str):
+            instids = [instid]
+        elif isinstance(instid, list):
+            instids = instid
+        else:
+            logger.error(f'matchTrade instid error {instid}')
+            return         
         #print("matchTrade", self.g_order_id,self.g_benchmark)
         #return
         #print('matchTrade', len(simuaccount.orders), instid)
         if len(simuaccount.orders) > 0:
             try:
                 for key,order in simuaccount.orders.items():
-                    #for instid in instids:
+                    for instid in instids:
                         #print('key',key, 'order',order['leftvol'],order['volume'],order['direction'],order['action'],instid,order['instid'])
                         if order['leftvol'] > 0 and instid == order['instid']:
     #                         print('orderid '+str(order['incoming_orderid']))
@@ -1054,7 +1060,7 @@ class QEsimtrader(object):
                             if g_dataSlide.get(instid, None) is None:
                                 logger.info(f"MatchTrade failed on g_dataslide have no data on such {instid}" )
                                 continue
-                            if g_dataSlide[instid].get('presett',0) == 0:
+                            if not instid[-3:] in ['SSE','SZE'] and g_dataSlide[instid].get('presett',0) == 0:
                                 logger.info(f"MatchTrade failed on presettle price is zero on such {instid}" )
                                 continue
                                 

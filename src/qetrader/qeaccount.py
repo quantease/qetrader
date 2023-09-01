@@ -299,7 +299,7 @@ class realAccountInfo:
         g_stat.loadFromDBReal(int(tradingDay)) 
         orders = getDBOrderDatareal(self.user, self.investorid, tradingDay)
         for oid in orders:
-            stgname = eval(orders[oid])['stratName']
+            stgname = eval(orders[oid]).get('stratName','default')
             self.order_stg_table[oid] = stgname
         #print(self.order_stg_table)
         self.stgtable_load = True  
