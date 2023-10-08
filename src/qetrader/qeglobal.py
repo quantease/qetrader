@@ -307,7 +307,7 @@ def getProdTime(instid):
              'SR': {'morning': ['', ''], 'night': ['2100', '2300']},
              'SS': {'morning': ['0000', '0100'], 'night': ['2100', '2359']},
              'T': {'morning': ['', ''], 'night': ['', '']},
-             'TA': {'morning': ['', ''], 'night': ['', '']},
+             'TA': {'morning': ['', ''], 'night': ['2100', '2300']},
              'TF': {'morning': ['', ''], 'night': ['', '']},
              'TL': {'morning': ['', ''], 'night': ['', '']},
              'TS': {'morning': ['', ''], 'night': ['', '']}, 

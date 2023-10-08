@@ -39,7 +39,7 @@ def installPlugin(plugin_name, version='latest'):
         if not os.path.exists(global_pluginpath):
             os.mkdir(global_pluginpath)
         
-        msg = get_package_address(plugin_name, global_platform, '3_x', global_macaddr)
+        msg = get_package_address(plugin_name, global_platform, global_pythonver, global_macaddr)
         if isinstance(msg, dict):
             filename = msg['filename']
             token = msg['token']
@@ -56,30 +56,31 @@ def installPlugin(plugin_name, version='latest'):
             os.remove(fullname)
         
         os.rename(fullname+'-bak',fullname)
+        if fullname.endswith('.zip'):
         
-        fullpath = global_pluginpath+f"qe{plugin_name}"
-        # 判断目录是否存在
-        if os.path.exists(fullpath):
-            # 修改目录权限
-            os.chmod(fullpath, 0o777)
-            
-            # 删除目录及其内容
-            shutil.rmtree(fullpath)
-            
-            print("原目录删除成功！")
+            fullpath = global_pluginpath+f"qe{plugin_name}"
+            # 判断目录是否存在
+            if os.path.exists(fullpath):
+                # 修改目录权限
+                os.chmod(fullpath, 0o777)
+                
+                # 删除目录及其内容
+                shutil.rmtree(fullpath)
+                
+                print("原目录删除成功！")
 
-        # 创建 ZipFile 对象
-        with zipfile.ZipFile(fullname, 'r') as zip_ref:
-            zip_ref.extractall(global_pluginpath)
+            # 创建 ZipFile 对象
+            with zipfile.ZipFile(fullname, 'r') as zip_ref:
+                zip_ref.extractall(global_pluginpath)
 
-        print("解压缩完成！")
-        suffix = '*.pyd' if global_platform== 'windows' else '*.so'
-        old_files = glob.glob(os.path.join(global_pluginpath, suffix))
-        if old_files:
-            print('删除旧版文件...')
-        for old_file in old_files:
-            os.chmod(old_file, 0o777)
-            os.remove(old_file)
+            print("解压缩完成！")
+            suffix = '*.pyd' if global_platform== 'windows' else '*.so'
+            old_files = glob.glob(os.path.join(global_pluginpath, suffix))
+            if old_files:
+                print('删除旧版文件...')
+            for old_file in old_files:
+                os.chmod(old_file, 0o777)
+                os.remove(old_file)
         print(f'插件{plugin_name}下载成功')
         print('在策略文件中按如下格式import该插件:')
         print(f'from qetrader.plugins.qe{plugin_name} import plugin_{plugin_name}')
