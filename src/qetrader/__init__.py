@@ -5,7 +5,7 @@ Created on Tue Nov 30 20:01:48 2021
 @author: ScottStation
 """
 
-__version__ = '1.0.32'
+__version__ = '1.0.34'
 
 from .qeinterface import qeStratBase
 from .qeinterface import make_order

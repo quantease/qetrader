@@ -41,6 +41,8 @@ class riskControl:
         self.bigvolpercent = {}
 
         self.callback = callback
+        self.actived = False
+        self.loaded = False
 
         self.tradingday = ''
         #self.load()
@@ -53,10 +55,8 @@ class riskControl:
             saveRiskCtlRecord(self.user, self.token, self.tradingday, riskdata, runmode = self.runmode)
             
     def setTradingDay(self, tradingday): 
-        if self.tradingday != tradingday:
-            self.tradingday = tradingday
-            self.load(tradingday)
-            print('Riskctl setTradingDay', tradingday)
+        self.tradingday = tradingday
+        self.load(tradingday)
     
     def load(self, tradingday):
         self.tradingday = tradingday
@@ -71,12 +71,15 @@ class riskControl:
                 self.bigvolpercent[key.upper()] = value['bigvolpercent']
                 self.bigvolpercent[key.upper()] = value['bigvolpercent'] 
                 self.minvol[key.upper()] = value['minvol']
+        #print('riskdata',self.user, self.token)        
         riskdata = loadRiskCtlRecord(self.user, self.token, tradingday, runmode = self.runmode)
         if riskdata:
             self.dayacts = riskdata['dayacts']
             self.dayselftrades = riskdata['dayselftrades']
             self.daywithdrawal = riskdata['daywithdrawal']
             self.daylargewithdrawal = riskdata['daylargewithdrawal']
+        #print('riskctl load',self.maxwithdrawal,self.maxwithdrawal.get('AG',0))
+        self.loaded = True
 
     def load_settings_from_csv(self, settings_file):
         # 读取CSV文件
@@ -120,6 +123,7 @@ class riskControl:
             elif module == 'bigvolcancels':
                 print('Successfully activated bigvolcancels risk control')
             self.modules[module] = True
+            self.actived = True
 
         except:
             import traceback
@@ -132,22 +136,30 @@ class riskControl:
     def getCancelPercent(self, instid):
         # 获取指定合约的撤单比例
         prod_id = self.transfer(instid)
+        if not self.actived or not self.loaded:
+            print('Risk control not activated or loaded.', self.actived, self.loaded)
+            return [0, 0]
         try:
             daywithdrawal = self.daywithdrawal[instid ] if instid  in self.daywithdrawal.keys() else 0
             daylarge_withdrawal = self.daylargewithdrawal[instid ] if instid  in self.daylargewithdrawal.keys() else 0
-            freq_percentage = (daywithdrawal / self.maxwithdrawal[prod_id ])
-            large_percentage = (daylarge_withdrawal / self.limitwithdrawal[prod_id ])
-            return [freq_percentage, large_percentage] ## not implemented
+            #print('daywithdrawal',daywithdrawal,daylarge_withdrawal,self.maxwithdrawal[prod_id ],self.limitwithdrawal[prod_id ])
+            if prod_id in self.maxwithdrawal and prod_id in self.limitwithdrawal:
+                freq_percentage = (daywithdrawal / self.maxwithdrawal[prod_id ])
+                large_percentage = (daylarge_withdrawal / self.limitwithdrawal[prod_id ])
+                return [freq_percentage, large_percentage] ## not implemented
+            else:
+                return [0,0]
             # 调用回调函数，获取指定合约的撤单比例
         except Exception as e:
-            print(f"Error getting cancel percentage for '{instid}': {str(e)}")
+            print(f"{e.__traceback__.tb_lineno} Error getting cancel percentage for '{instid}': {str(e)}")
             return [0,0]           
             # 调用回调函数，获取指定合约的撤单比例
 
 
     def getBigOrderThreshold(self, instid):
         prod_id = self.transfer(instid)
-        return self.maxnumorder.get(prod_id,10000)*self.bigvolpercent.get(prod_id,1)
+
+        return self.maxnumorder.get(prod_id,100000)*self.bigvolpercent.get(prod_id,1)
 
 
     def transfer(self, instid):
@@ -175,7 +187,7 @@ class riskControl:
                 self.secacts.append(context.curtime)
 
         if self.modules['bigvolcancels']:
-            if  volume >= self.maxnumorder[prod_id]:
+            if prod_id in self.maxnumorder and  volume >= self.maxnumorder[prod_id]:
                 return -5
 
         if self.modules['selftrade']:
@@ -185,11 +197,11 @@ class riskControl:
                 if instid in instPrices and checkfield in instPrices[instid]:
                     price = instPrices[instid][checkfield]
 
-                    if direction > 0 and limitprice > price:
+                    if direction > 0 and limitprice > price and prod_id in self.dayselftrades:
                         # if instid not in self.dayselftrades:
                         #     self.dayselftrades[prod_id] = 0
                         self.dayselftrades[prod_id] += 1
-                    elif direction < 0 and limitprice < price:
+                    elif direction < 0 and limitprice < price and prod_id in self.dayselftrades:
                         # if instid not in self.dayselftrades:
                         #     self.dayselftrades[prod_id] = 0
                         self.dayselftrades[prod_id] += 1
@@ -199,7 +211,7 @@ class riskControl:
                 #     logger.info(f'Warning: 自成交达到最大自成交次数的{self.percentage * 100:.2f}%以上.')
                 # if self.dayselftrades[prod_id] < self.maxselftrades[prod_id]:
                 #     self.dayselftrades[prod_id] += 1
-                if self.dayselftrades[prod_id] > self.maxselftrades[prod_id]:
+                if prod_id in self.dayselftrades and prod_id in self.maxselftrades and self.dayselftrades[prod_id] > self.maxselftrades[prod_id]:
                     return -5
         self.save()
         return 0
@@ -225,7 +237,7 @@ class riskControl:
         if self.modules['daymaxcancels']:
             if not instid in self.daywithdrawal:
                 self.daywithdrawal[instid] = num
-            elif self.daywithdrawal[instid] + num >= self.maxwithdrawal[prod_id] - 1:
+            elif prod_id in self.maxwithdrawal and self.daywithdrawal[instid] + num >= self.maxwithdrawal[prod_id] - 1:
                 return -2
             # elif self.daywithdrawal[prod_id] + num >= self.percentage * self.maxwithdrawal[prod_id]:
             #     print(f'Warning: 频繁撤单次数达到最大撤单次数的{self.percentage * 100:.2f}%以上.')
@@ -238,7 +250,7 @@ class riskControl:
             if context.orders[orderid]['leftvol'] >= self.maxnumorder[prod_id] * self.bigvolpercent[prod_id]:
                 if not instid in self.daylargewithdrawal:
                     self.daylargewithdrawal[instid] = num
-                elif self.daylargewithdrawal[instid] + num >= self.limitwithdrawal[prod_id] :
+                elif prod_id in self.limitwithdrawal and self.daylargewithdrawal[instid] + num >= self.limitwithdrawal[prod_id] :
                     return -2
                 else:
                     self.daylargewithdrawal[instid] += num

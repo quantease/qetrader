@@ -26,10 +26,10 @@ def transInstID2Real(instids):
     for instid in instids:
         exID = instid[-3:]
         instID = instid[:-4]
-        if exID == 'SFE' or exID == 'INE' or exID == 'DCE':
-            instID = instID.lower()
-        else:
+        if exID == 'ZCE' or exID == 'CCF':
             instID = instID.upper()
+        else:
+            instID = instID.lower()
         if exID == 'ZCE':
             instID = instID[:2] + instID[3:]
         instIDs.append(instID)    
