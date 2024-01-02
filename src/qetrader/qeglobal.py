@@ -200,7 +200,7 @@ def is_trade_day(date):
             return chinese_calendar.is_workday(date)
     except Exception as e:
         print('is_trade_day Error:',e)
-        
+        return date.weekday() <= 4       
         
 #def is_future_expired(instid):
 #    getym = lambda x : '20'+x[1:3]+'-'+x[3:5] if x[1].isdigit() else '20'+x[2:4]+'-'+x[4:6]

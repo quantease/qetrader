@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qetrader"
-version = "1.0.34"
+version = "1.0.35"
 authors = [
   { name="Scott Zhang", email="scott2011@qq.com" },
 ]
@@ -18,7 +18,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  'chinese_calendar>=1.7.2',
+  'chinese_calendar>=1.9.0',
   'Cython>=0.29.33',
   'ctpwrapper>=6.6.9',
   'Flask>=1.1.1',
