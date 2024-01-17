@@ -156,6 +156,8 @@ class qeCtpTrader(object):
 #         self.authcode = CTP_AuthCode
 #         self.address = FrontAddr
         self.getAsk = False
+        self.accFinish = True
+        self.posFinish = True
         self.ordersload = True
         self.tradesload = True
         self.classname = ''
@@ -362,16 +364,20 @@ class qeCtpTrader(object):
                 #    self.tradespi.reqTrade()
                 #    self.tradesload = True
                 
-                if not self.accload or not self.posload or curts - self.lastts > 1 :
+                if not self.accload or not self.posload or (curts - self.lastts > 1 and self.accFinish and self.posFinish):
                     self.lastts = curts
                     if self.getAsk == True :
                         self.getAsk = False
                         ret = self.tradespi.reqAccount()
                         assert ret==0, f'reqAccount failed {ret}'
+                        self.accFinish = False
+                        #print('reqAccount')
                     elif self.getAsk == False :
                         self.getAsk = True
                         ret = self.tradespi.reqPosition()
                         assert ret==0, f'reqPosition failed {ret}'
+                        self.posFinish = False
+                        #print('reqPosition')
 
         except Exception as e:
             logger.error('getStatistic '+str(e))
@@ -494,6 +500,7 @@ class qeCtpTrader(object):
         self.account.totalfees = self.account.accufees + self.account.dayfees
         self.account.maxmarg = max(self.account.margin, self.account.maxmarg)
         
+        self.accFinish = True
         if not self.accload:
             self.accload = True
             self.account.saveToDB()
@@ -509,6 +516,7 @@ class qeCtpTrader(object):
         self.account.position = copy.copy(d['data'])
         #print('ctp update position',self.account.position.get('AU2312.SFE',{}))
         self.account.turnover += float(d['turnover'])
+        self.posFinish = True
         if not self.posload:
             self.posload = True
             self.account.saveToDB()

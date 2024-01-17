@@ -26,7 +26,7 @@ mutex = Lock()
 num = 0
 if dbconfig['ip']=='data.quantease.store':
     host = dbconfig['ip']
-    avail_hosts = [dbconfig['ip'],'quantease.store']
+    avail_hosts = [dbconfig['ip'],'quantease.store','db.quantease.store']
     cur_host_id = 0
     port = 9018
 else:
@@ -138,6 +138,7 @@ def udpClient(apiset):
             if len(avail_hosts) > 1:
                 cur_host_id = (cur_host_id + 1) % len(avail_hosts)
                 host = avail_hosts[cur_host_id] 
+                port = 9018 if host != '192.168.3.33' else 9019
             client = doConnect(host, port)
         except Exception as e:
             logger.warning('\r\nother error occur: ', e)
