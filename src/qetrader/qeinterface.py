@@ -362,9 +362,13 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
                     closevol = [ min(volume - yesvol, tvol - yesvol), yesvol]
                 else:
                     closevol = [ 0, volume]
-                print('有昨仓',instid, dirstr, yesvol, tvol, closevol, volOnRoad)    
+                logger.info(f'有昨仓:{instid}, {dirstr},{volume}, {yesvol}, {tvol}, {closevol}, {volOnRoad}')    
             else:
                 closevol = [min(volume, tvol - yesvol), 0]
+            
+            if closevol[0]==0 and closevol[1]==0:
+                logger.info(f'没有可平仓:{instid}, {dirstr},{volume}, {yesvol}, {tvol}, {closevol}, {volOnRoad}')
+                return -10,[]
             
             ordernum = 2 if closevol[0] != 0 and closevol[1] != 0 else 1
             #rc = context.accounts[accid].riskctl.make_order(context, ordernum)
@@ -376,7 +380,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
                     rc = context.account.riskctl.make_order(context, closevol[i], instid, price, direction)
                     if rc < 0:
                         ctstr = '平今' if i == 0 else '平昨'
-                        logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction} {ctstr} {closevol[i]}")
+                        logger.info(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction} {ctstr} {closevol[i]}")
                         continue
                     success += 1
                     context.orderid = g_stat.getNewOrderID()
@@ -413,7 +417,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
             rc = context.account.riskctl.make_order(context, volume, instid, price, direction)
             #rc = context.account.riskctl.make_order(context)
             if rc < 0:
-                logger.warning(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
+                logger.info(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
                 return rc,[]
             context.orderid = g_stat.getNewOrderID()
             temporder = {'instid': instid,

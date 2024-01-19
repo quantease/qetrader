@@ -1195,6 +1195,8 @@ class CTradeSpi(TraderApiWrapper):
             d['errorid'] = 0
 
         d['status'] = statusMap.get(d['status_ctp'],'unknown')
+        if d['status'] in ['touch','not_touch']:
+            d['status'] = 'unknown'        
         d['direction'] = directionMap.get(d['direction_ctp'],'unknown')
         offset = offsetMap.get(d['offset_ctp'],'auto')
         d['action'] = 'open' if offset =='open' else 'close'
@@ -1366,7 +1368,12 @@ class CTradeSpi(TraderApiWrapper):
                 d['tradevol'] = order['volume']
                 d['leftvol'] = 0
 
-                    ## add keys            
+                # add keys            
+            elif  d['errorid']  == 25:
+                d['cancelvol'] = order['volume'] - order['tradevol']
+                d['tradevol'] = order['tradevol']
+                d['leftvol'] = 0
+            
             else:
                 d['cancelvol'] = 0
                 d['tradevol'] = order['tradevol']
