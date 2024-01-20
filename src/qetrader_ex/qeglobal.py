@@ -42,6 +42,13 @@ class qeDataSlide(collections.UserDict):
     def update(self, datalist):
         for data in datalist:
             self.data[data['instid']] = data["data"]
+    def updateEx(self, dataslides):
+        if dataslides:
+            for key in dataslides:
+                if not key in ['tradingday','lastdigit','market_ready']:
+                    self.data[key] = dataslides[key]
+        else:
+            print('dataslides is None')
 g_dataSlide = qeDataSlide()
 
 

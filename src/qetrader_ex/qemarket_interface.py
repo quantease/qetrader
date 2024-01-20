@@ -58,22 +58,24 @@ def changeCtpInstIDs(stratName, instIDs):
     instID_update = True
     strat_instIDs[stratName] = instIDs
 
-def save_tick_data(data):
-    tickdata = data['data']
+def save_tick_data(tickdata):
     for inst in tickdata:
-        datastr = json.dumps(tickdata[inst])
-        timedigit = tickdata[inst]['timedigit']
-        saveMarketToDB(inst, timedigit, datastr)
+            datastr = json.dumps(tickdata[inst])
+            #print(inst,tickdata[inst])
+            timedigit = tickdata[inst]['timedigit']
+            saveMarketToDB(inst, str(timedigit), datastr)
 
 def update_data(strats, data, runmode):    
     try:
         assert 'type' in data and 'data' in data, 'incorrect data format'
-        assert data['type'] == qetype.KEY_MARKET_DATA, 'incorrect data type'
+        assert data['type'] == qetype.KEY_NEW_MARKET_DATA, 'incorrect data type'
         if strats['async']:
             strats['queue'].put(data)
         else:
+            #print(strats)
             for key in strats:
-                strats[key]['queue'].put(data)
+                if not key in ['async']:
+                    strats[key]['queue'].put(data)
 
 
 
@@ -123,17 +125,19 @@ def runMarketInterface(strats, runmode,  data_slides, instIDs,mode_724=False):
                 instSave = strats[name]['strat'].datamode == 'tick'
 
     while True:
+        #print('interface of market')
         if 'lastdigit' in data_slides and last_timedigit < data_slides['lastdigit']:
-            print('updateData')
+            #print('updateData')
             ## send to strats and traders
             d = {}
-            d['type'] = qetype.KEY_MARKET_DATA
+            d['type'] = qetype.KEY_NEW_MARKET_DATA
             d['data'] = data_slides.copy()
-            g_dataSlide.update(data_slides)
+            
+            g_dataSlide.updateEx(data_slides.copy())
             update_data(strats, d, runmode)
             if instSave and last_save_timedigit <= data_slides['lastdigit']-500:
                 last_save_timedigit = data_slides['lastdigit']
-                save_tick_data(d)
+                save_tick_data(g_dataSlide)
 
 
         if 'tradingday' in data_slides and data_slides['tradingday'] != last_trading_day:
@@ -155,11 +159,12 @@ def runMarketInterface(strats, runmode,  data_slides, instIDs,mode_724=False):
             print('updateInstIDs')
             ## send to traders
             instID_update = False
-            instIDs.update(strat_instIDs)
+            for key in strat_instIDs:
+                instIDs[key] = strat_instIDs[key]
             now = datetime.now()
             instIDs['lastupdate'] = now.strftime('%Y%m%d%H%M%S%f')
 
-        time.sleep(0.1)
+        time.sleep(0.2)
 
 
 

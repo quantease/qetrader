@@ -10,7 +10,7 @@ from .qecontext import qeContextBase
 from .qetype import qetype
 from datetime import datetime,timedelta
 from .qeglobal import  is_trade_day
-from .qectpmarket_wrap import changeCtpInstIDs
+from .qemarket_interface import changeCtpInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 from .qeredisdb import saveHedgeMarketToDB
@@ -158,12 +158,13 @@ class qeStratProcess:
         print(u"策略进程启动成功；"+str(strat.name))
         logger.info(u"策略进程启动成功；"+str(strat.name))
         logger.info("strat user "+str(self.user))
+        print('strat user',self.user, strat.user)
         context = qeContextBase(self.instid)
         #g_userinfo = globalInfo()  
         #print(g_userinfo.info_time,'#')
         #print(1)
-        
-        context.user = self.user
+        self.user = strat.user
+        context.user = strat.user
         context.token = self.token
         context.hedgemodel = self.hedgemodel
         context.printlog = self.printlog
@@ -209,7 +210,7 @@ class qeStratProcess:
                     try:
                         d = self.stratQueue.get(block = True, timeout = 1)
                         #print(d)
-                        if d['type'] == qetype.KEY_MARKET_DATA or d['type'] == qetype.KEY_MARKET_MULTIDATA:         
+                        if d['type'] == qetype.KEY_MARKET_DATA or d['type'] == qetype.KEY_MARKET_MULTIDATA or d['type'] == qetype.KEY_NEW_MARKET_DATA:         
 #                             print('stratprocess market data')
                             savedInsts = strat.instid.copy();
                             if d['type'] == qetype.KEY_MARKET_DATA:
@@ -219,6 +220,15 @@ class qeStratProcess:
                                 for data in d['data']:
                                     self.updateData(data,context)
                                 self.updateTime(d['data'][0], context)
+                            elif d['type'] == qetype.KEY_NEW_MARKET_DATA:
+                                isFirst = True
+                                for inst in d['data']:
+                                    data = {'instid':inst,'data':d['data'][inst] }
+                                    self.updateData(data,context)
+                                    if isFirst:
+                                        isFirst = False
+                                        self.updateTime(data, context)
+                                #print('new data')
                             #self.autoOrders(d, context)
                             #self.algoTrade(d,context)
                                 #if context.runmode == 'simu':
@@ -358,6 +368,7 @@ class qeStratProcess:
                 saveSettingDataToDB(self.user, self.token,  stgsett)
             elif context.runmode == 'real':
                 stgsett = loadSettingDatareal(self.user, self.token)
+                #print('loadstgsett',self.user, self.token, stgsett)
                 stgsett[self.name] = new
                 saveSettingDatarealToDB(self.user, self.token, stgsett)
         
@@ -478,7 +489,7 @@ class qeStratProcess:
                 if context.lastvol[tempinstid] == 0:
                     context.lastvol[tempinstid] = context.dataslide[tempinstid]['volume']
                     context.curvol[tempinstid] = 0
-                else:
+                elif context.dataslide[tempinstid]['volume'] > context.lastvol[tempinstid]:
                     context.curvol[tempinstid] = context.dataslide[tempinstid]['volume'] - context.lastvol[tempinstid]
                     context.lastvol[tempinstid] = context.dataslide[tempinstid]['volume']
             else:

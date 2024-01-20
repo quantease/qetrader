@@ -6,8 +6,9 @@ Created on Wed Nov  3 11:30:36 2021
 """
 
 from multiprocessing.dummy import Pool
-from multiprocessing import Queue, cpu_count,Process, Manager, freeze_support
-from .qectpmarket_wrap import runQEMarketProcess,  checkMarketTime
+from multiprocessing import Queue, cpu_count,Process, Manager, freeze_support, Lock
+from .qectpmarket_wrap import runQEMarketProcess 
+from .qemarket_interface import checkMarketTime, runMarketInterface
 #from .qectptrader import runQERealTraderProcess
 from .qectptrader_wrap import runQERealTraderProcess
 from .qesimtrader import  runQETraderProcess #, getCurTradingDay
@@ -63,6 +64,7 @@ from .qeaccount import realAccountInfo
 # mdqueue = Queue()
 
 processlist = []
+support_mds = ['ctp', 'stock'] ## support market data types
 curuser = 'test'
 tdqueue_ready = False
 
@@ -122,7 +124,9 @@ def processFunc(processInfo):
             elif processInfo['name'].find('stock') >= 0:
                 runStockMarketProcess(curuser,'888888',processInfo['strats'],processInfo['runmode'])
                 logger.info("add stock Market") 
-            
+        elif processInfo['type'] == 'marketin':
+            runMarketInterface(processInfo['strats'], processInfo['runmode'], processInfo['dataslides'], processInfo['instids'], processInfo['mode_724'])
+            logger.info("add market interface")
         elif processInfo['type'] == 'trader':
             logger.info("add simulation Trader")
             # balance=processInfo['balance']
@@ -383,14 +387,18 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
     
         stratSetts ={'async':True,'queue':stratQueue,'strat':strats, 'recmode': record_strat}
         processlist.append(stratprocess)
-    
+    m_processlist = []
     for m in md:
         mode724 = mode_724 if m.find('ctp') >=0 else False
         mdprocess = {'type': 'market', 'name': m, 'setting': settings,"mode_724":mode724,'strats':stratSetts, 'runmode':'simu'}
-        processlist.append(mdprocess)
+        if m in support_mds:
+            m_processlist.append(mdprocess)
 
     traderprocess = {'type': 'trader', 'name': 'ctp', 'insts': [], 'token':token,"mode_724":mode_724,'strats':stratSetts}
     processlist.append(traderprocess)
+    ## add market interface thread
+    minprocess = {'type': 'marketin', 'name': 'interface', 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
+    processlist.append(minprocess)
 
     stgsetts = {}
     stgformual = {}
@@ -413,9 +421,21 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
     freq = { strat.name : strat.freq for strat in strats}
     saveStrategyfreqToDB(curuser,token, freq)
     #aveImageSettingDataToDB(curuser, stgimagesetts)
+    freeze_support()
+    m = Manager()
+    m_data_slides = m.dict()
+    m_instIDs = m.dict()
+    m_Lock = Lock()
 
-    with Pool(max(int(cpu_count()), 10)) as pool:
-        results = pool.map(processFunc, processlist)
+    process_list = []
+    process_list.append(Process(target=runProcessPool, args=(processlist, m_data_slides, m_instIDs)))
+    for mp in m_processlist:
+        process_list.append(Process(target=runMarketProcess, args=(mp, m_data_slides, m_instIDs, m_Lock)))
+    for process in process_list:
+        process.start()
+    for process in process_list:
+        process.join()
+
 
 
 def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, mode_724=False,  riskctlparas=None,printlog=True,rfrate=0.02, record_strat=False, async_strats=False, skip_settle_check=False):
@@ -609,7 +629,7 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
         # qectpmarket.marketInit(user, '888888')
         curuser = user.replace('/', '')
         initLogger(curuser, True,printlog=printlog)
-        print("logger initialized")
+        print("logger initialized", curuser)
         #tradingday = getCurTradingDay()
         #g_stat.loadFromDBReal(curuser, [user_setting['investorid']], tradingday)
         
@@ -676,13 +696,17 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
         for j  in range(len(user_setting)):
             sett = user_setting[j]
             
-            if not sett['api'] in mdlist:
+            if not sett['api'] in mdlist and sett['api'] in support_mds:
                 mdprocess = {'type': 'market', 'name': sett['api'], 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
                 m_processlist.append(mdprocess)
                 mdlist.append(sett['api'])
             accounts[j].token = token
             tdprocess = {'type': 'realtrader', 'name': sett['api'],'class':sett['class'], 'setting': sett,"mode_724":mode_724,'strats':stratQueues,'account':accounts[j], 'queue':getAccidTraderQueue(j)}
             processlist.append(tdprocess)
+
+        ## add market interface thread
+        minprocess = {'type': 'marketin', 'name': 'interface', 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
+        processlist.append(minprocess)
 
         stgsetts = {}
         stgformual = {}
@@ -703,37 +727,48 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
         saveFormulaDatarealToDB(curuser, token, stgformual)
         freq = {strat.name:strat.freq for strat in strats}
         saveStrategyfreqToDB(curuser,token, freq)
-        
+        #print('stgsetts',curuser, token, stgsetts)
         #saveImageSettingDataRealToDB(curuser, stgimagesetts)
         freeze_support()
         m = Manager()
         m_data_slides = m.dict()
         m_instIDs = m.dict()
-        m_traderqueue = m.Queue()
+        m_Lock = Lock()
 
-        time.sleep(0.01)
-        p1 = Process(target=runProcessPool, args=(processlist, m_data_slides, m_instIDs, m_traderqueue))
-        p2 = Process(target=runMarketProcess, args=(data_args, m_data_slides, m_instIDs, m_traderqueue))
-        p1.start()
-        p2.start()
-        p1.join()
-        p2.join()
+        process_list = []
+        for mp in m_processlist:
+            
+            process_list.append(Process(target=runMarketProcess, args=(mp, m_data_slides, m_instIDs, m_Lock)))
+        process_list.append(Process(target=runProcessPool, args=(processlist, m_data_slides, m_instIDs)))
+        for process in process_list:
+            process.start()
+        for process in process_list:
+            process.join()
+
     except Exception as e:
         logger.error("qemain_begin: " + str(e), exc_info=True)
 
 
 def runProcessPool(processlist, m_data_slides, m_instIDs):
     for process in processlist:
-        if process['type'] == 'realtrader':
+        if process['type'] == 'marketin':
             process['dataslides'] = m_data_slides
-            process['instIDs'] = m_instIDs
-            process['queue'] = m_traderqueue
-
+            process['instids'] = m_instIDs
     with Pool(max(int(cpu_count()), 10)) as pool:
         results = pool.map(processFunc, processlist)
 
-def runMarketProcess(data_args, m_data_slides, m_instIDs, m_traderqueue):
-    pass
+def runMarketProcess(processInfo, m_data_slides, m_instIDs, m_lock):
+    global curuser
+    print('market',processInfo['name'])
+    if processInfo['name']=='ctp':
+        setting = processInfo['setting'] if processInfo['setting'] else None
+        runQEMarketProcess(curuser,'888888',processInfo['strats'],processInfo['runmode'],setting, m_data_slides,m_instIDs,m_lock,processInfo['mode_724'])
+        logger.info("add ctp Market")
+
+    elif processInfo['name']=='stock':
+        runStockMarketProcess(curuser,'888888',processInfo['strats'],processInfo['runmode'],m_data_slides,m_instIDs,m_lock)
+        logger.info("add stock Market") 
+ 
 
 def isDataModeValid(datamode):
     import re

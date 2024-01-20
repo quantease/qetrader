@@ -14,7 +14,7 @@ from .qecontext import qeContextBase
 from .qetype import qetype
 from datetime import datetime,timedelta
 from .qeglobal import  is_trade_day
-from .qectpmarket_wrap import changeCtpInstIDs
+from .qemarket_interface import changeCtpInstIDs
 #from .qestockmarket import changeStockInstIDs
 #from .qesoptmarket import changeSoptInstIDs
 #from .qesoptmarket import changeSoptInstIDs
@@ -275,16 +275,24 @@ class qeAsyncStratProcess:
                     try:
                         d = self.stratQueue.get(block = True, timeout = 1)
                         #print(d)
-                        if d['type'] == qetype.KEY_MARKET_DATA or d['type'] == qetype.KEY_MARKET_MULTIDATA:           
+                        if d['type'] == qetype.KEY_MARKET_DATA or d['type'] == qetype.KEY_MARKET_MULTIDATA or d['type'] == qetype.KEY_NEW_MARKET_DATA:           
 #                             print('stratprocess market data')
                             savedInsts = {}
                             if d['type'] == qetype.KEY_MARKET_DATA:
                                 self.updateData(d)
                                 self.updateTime(d)
-                            else:    
+                            elif d['type'] == qetype.KEY_MARKET_MULTIDATA:    
                                 for data in d['data']:
                                     self.updateData(data)
                                 self.updateTime(d['data'][0])    
+                            elif d['type'] == qetype.KEY_NEW_MARKET_DATA:
+                                isFirst = True
+                                for inst in d['data']:
+                                    data = {'instid':inst,'data':d['data'][inst]}
+                                    self.updateData(data)
+                                    if isFirst:
+                                        self.updateTime(data)
+                                        isFirst = False
                             for strat in self.strats:
                                 savedInsts[strat.name] = strat.instid.copy()
                                 #if d['instid'] in strat.instid:
@@ -484,7 +492,7 @@ class qeAsyncStratProcess:
                         if strat.context.lastvol[tempinstid] == 0:
                             strat.context.lastvol[tempinstid] = strat.context.dataslide[tempinstid]['volume']
                             strat.context.curvol[tempinstid] = 0
-                        else:
+                        elif strat.context.dataslide[tempinstid]['volume'] > strat.context.lastvol[tempinstid]:
                             strat.context.curvol[tempinstid] = strat.context.dataslide[tempinstid]['volume'] - strat.context.lastvol[tempinstid]
                             strat.context.lastvol[tempinstid] = strat.context.dataslide[tempinstid]['volume']
                     else:

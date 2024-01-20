@@ -813,6 +813,8 @@ class QEsimtrader(object):
         elif d['type'] == qetype.KEY_MARKET_DATA:
             #print('trader mdata')
             self.update(d,d['instid'])
+        elif d['type'] == qetype.KEY_NEW_MARKET_DATA:
+            self.updateNew(d)
         elif d['type'] == qetype.KEY_ON_CROSS_DAY:
             self.crossday(d)    
         elif d['type'] == qetype.KEY_MARKET_MULTIDATA:
@@ -848,7 +850,40 @@ class QEsimtrader(object):
         simuaccount.setTradingDay(d['tradingday'])
         self.curday = d['tradingday']
        
-        
+    def updateNew(self,d):
+
+        try:
+
+            self.curtime = datetime.strptime(str(d['data']['lastdigit'])[:14],"%Y%m%d%H%M%S")
+            for instid in d['data']:
+                self.matchTrade(instid)
+            
+            simuaccount.current_timedigit = d['data']['lastdigit']
+            insts = d['data'].keys()
+            tradingday = d['data']['tradingday']
+
+            if tradingday != self.curday:
+                #if self.curday != '':
+                #    self.crossday()
+                self.curday = tradingday
+            if simuaccount.tradingDay == '':
+                self.loadFromDB(tradingday)
+ 
+            if self.lasttime == 0 :
+                #print('first update')
+                self.lasttime = d['data']['lastdigit']
+                simuaccount.updateCapital(0, 0)
+                simuaccount.saveToDB()
+                
+            elif abs(d['data']['lastdigit'] - self.lasttime) > 2500:
+                
+                ##every above 2.5 second, update capital
+                self.lasttime = d['data']['lastdigit']
+                simuaccount.updateCapital(0, 0)
+                simuaccount.saveToDB()
+            
+        except Exception as e:
+            logger.error(f"update error {e}",exc_info=True )         
         
     def update(self,d,instid):
         global g_dataSlide

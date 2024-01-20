@@ -44,6 +44,7 @@ class qeEnumTypes():
     KEY_QRY_TRADE = 115
     KEY_USER_LOGOUT = 116
     KEY_ON_CANCEL_CONFIRM = 117
+    KEY_NEW_MARKET_DATA = 118
 
 qetype = qeEnumTypes()
 

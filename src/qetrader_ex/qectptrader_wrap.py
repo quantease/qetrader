@@ -10,7 +10,7 @@ from .qeredisdb import saveProcessToDB,saveTradeDatarealToDB,saveOrderDatarealTo
 from .qelogger import logger
 #from .qeriskctl import ctpriskctl
 #from multiprocessing import Queue
-from .qectpmarket_wrap import checkMarketTime
+from .qemarket_interface import checkMarketTime
 from .qecontext import transInstID2Real,transInstID2Context,transExID2Context
 import copy
 from threading import Timer

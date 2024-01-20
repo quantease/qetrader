@@ -16,10 +16,11 @@ from .qecontext import transInstID2Real,transInstID2Context
 ##from qesimtrader import marketReadyNotice
 from .qeredisdb import saveMarketToDB, resetMarketData
 from .qestatistics import getPrevTradingDay
-from .qeglobal import getInstTraderQueue, getClassInstIDs, getAccidTraderQueue
-from .qeinterface import simuqueue
-from qesdk import get_valid_instID
-from .qeglobal import g_dataSlide
+#from .qeglobal import getInstTraderQueue,  getAccidTraderQueue
+from .qeglobal import getClassInstIDs
+#from .qeinterface import simuqueue
+#from qesdk import get_valid_instID
+#from .qeglobal import g_dataSlide
 '''
 以下为需要订阅行情的合约号，注意选择有效合约；
 有效连上但没有行情可能是过期合约或者不再交易时间内导致
@@ -165,6 +166,8 @@ class CFtdcMdSpi(MdApiWrapper):
         self.tradingDay = ''
         self.stratInstances = {}
         self.bFirstLogin = True
+        self.lastdigit = 0
+        self.lastInstUpdate = ''
 
     def Init(self) -> None:
         """
@@ -352,6 +355,12 @@ class CFtdcMdSpi(MdApiWrapper):
         timedigit = int(actionDay)*1000000000 +(ctime+inc)
         timestr = (actionDay +' '+ pDepthMarketData.UpdateTime+'.'+str(pDepthMarketData.UpdateMillisec + 1000)[1:])
         qeinst = transInstID2Context(instid, exID)
+        if timedigit > self.lastdigit:
+            self.lastdigit = timedigit
+            if 'lastupdate' in self.instIDs and self.instIDs['lastupdate'] > self.lastInstUpdate:
+                self.lastInstUpdate = self.instIDs['lastupdate']
+                self.changeInstIDs_new()
+           
         mddata={'tradingday':self.tradingDay,\
         'time': timestr,\
         'timedigit': timedigit,\
@@ -379,8 +388,10 @@ class CFtdcMdSpi(MdApiWrapper):
         d['instid'] = qeinst
         d['data'] = mddata
         #print('market',d['instid'],mddata['current'])
-        g_dataSlide.update([d])
-        self.callback(d)
+        #g_dataSlide.update([d])
+        #self.callback(d)
+        with self.m_lock:
+            self.data_slides.update({qeinst:mddata, 'lastdigit':self.lastdigit, 'tradingday':self.tradingDay, 'market_ready':self.bReady})
         
     def OnRspSubMarketData(self, pSpecificInstrument, pRspInfo, nRequestID, bIsLast) -> None:
         if pRspInfo.ErrorID == 0:
@@ -390,11 +401,12 @@ class CFtdcMdSpi(MdApiWrapper):
             logger.error(f"Subscribe Failed id:{pRspInfo.ErrorID},instid:{pSpecificInstrument.InstrumentID},msg:{pRspInfo.ErrorMsg}")
     
     def OnRspUnSubMarketData(self, pSpecificInstrument, pRspInfo, nRequestID, bIsLast) -> None:
-        if pRspInfo.ErrorID == 0:
+        if pRspInfo and pRspInfo.ErrorID == 0:
             logger.info(u"ctp行情退订成功："+str(pSpecificInstrument.InstrumentID))
             print(u"ctp行情退订成功："+str(pSpecificInstrument.InstrumentID))
         else:
             logger.error(f"UnSubscribe Failed id:{pRspInfo.ErrorID},instid:{pSpecificInstrument.InstrumentID},msg:{pRspInfo.ErrorMsg}")
+    '''
     def callback(self, d):
         try:
         
@@ -440,7 +452,7 @@ class CFtdcMdSpi(MdApiWrapper):
                 logger.error('incorrect type given as type is'+str(d['type']))
         except Exception as e:
             logger.error(f"CTP market callback error {e}",exc_info=True )  
-            
+    '''        
     def callTimer(self):
         self.timer = threading.Timer(30, self.timerCallback)
         self.timer.start()   
@@ -489,10 +501,53 @@ class CFtdcMdSpi(MdApiWrapper):
                 resetMarketData(inst, before_time)
             self.subID = list(realInstSet)
         
-        if self.recmode:
-            self.subID = [get_valid_instID('AU9999')[:6].lower(), get_valid_instID('TF9999')[:6], get_valid_instID('IF9999')[:6]]
+        #if self.recmode:
+            #self.subID = [get_valid_instID('AU9999')[:6].lower(), get_valid_instID('TF9999')[:6], get_valid_instID('IF9999')[:6]]
         #print('ctp sub', self.subID)
-            
+
+    def changeInstIDs_new(self):
+        newSet = set()
+        adds = []
+        removes = []
+        localInsts = self.instIDs.copy()
+        print(self.instIDs)
+        for name in localInsts:
+            if name == 'lastupdate':
+                continue
+
+            cur_insts = localInsts[name]
+            new_insts = getClassInstIDs(cur_insts, ['future'])
+            self.stratInsts[name] = new_insts
+            newSet.update(new_insts)
+
+        for inst in newSet:
+            if not inst in self.curInstSet:
+                adds.append(inst)
+        for inst in self.curInstSet:
+            if not inst in newSet:
+                removes.append(inst)
+        self.curInstSet = newSet
+        unsubs, exids = transInstID2Real(removes)
+        for inst in unsubs:
+            if inst in self.subID:
+                self.subID.remove(inst)
+            if inst in self.instExIDs:
+                del self.instExIDs[inst]
+        subs, exids = transInstID2Real(adds)
+        for i in range(len(subs)):
+            self.subID.append(subs[i])
+            self.instExIDs[subs[i]] = exids[i]
+        if not self.recmode:
+            if len(subs)> 0:
+                self.SubscribeMarketData([iid.encode('utf-8') for iid in subs])
+            #if len(unsubs) > 0:
+            #    self.UnSubscribeMarketData([iid.encode('utf-8') for iid in unsubs])
+        #else:
+        #    self.subID = [get_valid_instID('AU9999')[:6].lower(), get_valid_instID('TF9999')[:6], get_valid_instID('IF9999')[:6]]    
+
+
+
+
     def changeInstIDs(self, name, instIDs):
         adds =[]
         removes = []
@@ -528,8 +583,8 @@ class CFtdcMdSpi(MdApiWrapper):
                     self.SubscribeMarketData([iid.encode('utf-8') for iid in subs])
                 if len(unsubs) > 0:
                     self.UnSubscribeMarketData([iid.encode('utf-8') for iid in unsubs])
-            else:
-                self.subID = [get_valid_instID('AU9999')[:6].lower(), get_valid_instID('TF9999')[:6], get_valid_instID('IF9999')[:6]]
+            #else:
+            #    self.subID = [get_valid_instID('AU9999')[:6].lower(), get_valid_instID('TF9999')[:6], get_valid_instID('IF9999')[:6]]
             #print('ctp adds',adds,'removes',removes)
             #print('ctp subs',subs,'unsubs',unsubs)
         return (adds, removes)
@@ -618,12 +673,13 @@ class CFtdcMdSpi(MdApiWrapper):
         """
         pass
 
-def runQEMarketProcess(user, passwd, strats,runmode, setting_dict, mode_724=False):
+def runQEMarketProcess(user, passwd, strats,runmode, setting_dict, data_slides,instIDs, m_lock, mode_724=False):
     global mduserspi, g_mode_724, timer
+    print('RunMarket')     
     evalmode = False
     if setting_dict is not None and setting_dict['api'] == 'ctptest':
         evalmode = True
-        
+   
     mduserspi = CFtdcMdSpi()
     
     mduserspi.Create("./", False , True)  
@@ -644,6 +700,12 @@ def runQEMarketProcess(user, passwd, strats,runmode, setting_dict, mode_724=Fals
     mduserspi.initCallback(user,passwd) 
     mduserspi.register()
     mduserspi.callTimer()
+    mduserspi.instIDs = instIDs
+    if 'lastupdate' in instIDs:
+        mduserspi.last_inst_update = instIDs['lastupdate']
+    
+    mduserspi.data_slides = data_slides
+    mduserspi.m_lock = m_lock
 
     pass_flag = True
     # timer = threading.Timer(30, timer_callback)

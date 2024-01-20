@@ -1134,12 +1134,5 @@ def record_hedge_point(context, action, dirstr, volume):
         real_record_hedge_point(context, action, dirstr, volume)        
         
 
-def reqCtpLogout(context,accid=0):
-    from .qectpmarket_wrap import marketLogout 
-    marketLogout()
-    traderqueue = getAccidTraderQueue(accid)
-    temporder = {}
-    temporder['type'] = qetype.KEY_USER_LOGOUT
-    traderqueue.put(temporder)
     
     

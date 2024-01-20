@@ -8,5 +8,5 @@ def changeStockInstIDs(stratname, instids):
     pass
 
 
-def runStockMarketProcess(user, passwd, strats,runmode):
+def runStockMarketProcess(user, passwd, strats,runmode,data_slides,instIDs,m_lock):
     pass
