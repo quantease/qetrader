@@ -9,7 +9,7 @@ import time
 import json
 #import os
 from .qetype import qetype
-from .qeglobal import getAccidTraderQueue, g_dataSlide
+from .qeglobal import  g_dataSlide
 from .qeredisdb import saveMarketToDB, resetMarketData
 from .qestatistics import getPrevTradingDay
 #from .qeinterface import simuqueue
@@ -100,17 +100,6 @@ def update_data(strats, data):
     except Exception as e:
         logger.error(f"CTP market interface callback error {e}",exc_info=True )      
 
-def cross_day(data, runmode,tqueue):
-    try:
-        if runmode == 'simu':
-            tqueue.put(data)               
-        else:
-            queues = getAccidTraderQueue(0) #getInstTraderQueue(d['instid'])
-            for queue in queues:
-                queue.put(data)
-
-    except Exception as e:
-        logger.error(f"CTP market interface crossday error {e}",exc_info=True )
 
 def resetOldMarketData(instIDs, now):
     before_time = getPrevTradingDay(now) + '160000000'    

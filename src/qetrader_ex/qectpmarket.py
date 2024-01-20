@@ -18,7 +18,7 @@ from .qecontext import transInstID2Real,transInstID2Context
 from .qeredisdb import saveMarketToDB, resetMarketData
 from  pyctp.thostmduserapi import *
 from .qestatistics import getPrevTradingDay
-from .qeglobal import getInstTraderQueue, getInstClass,getClassInstIDs, import_source, getExemode,g_dataSlide
+from .qeglobal import  getInstClass,getClassInstIDs, import_source, getExemode,g_dataSlide
 from .qeinterface import simuqueue
 from qesdk import get_valid_instID
 '''

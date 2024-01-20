@@ -209,7 +209,7 @@ class qeCtpTrader(object):
                     while not self.tqueue.empty():
 #                         print('.')
                         d = self.tqueue.get(block=True, timeout=1)
-                        print('trader process',d['type'])
+                        #print('trader process',d['type'])
                         self.process(d)
                     time.sleep(0.001)
                 except Exception as e:
@@ -864,7 +864,7 @@ class CTradeSpi(TraderApiWrapper):
             orderfield.Direction = str2bytes(directionMapReverse.get(order['direction'],''))
             orderfield.CombOffsetFlag = str2bytes(offsetMapReverse.get(order_offset,''))
             ret = self.ReqOrderInsert(orderfield,self.reqID)
-            print('sendorder',ret)
+            #print('sendorder',ret)
             if ret != 0:
                 logger.warning(f"ReqOrderInsert Failed:{ret}")
                 self.account.orders[orderid]['errorid']= ret
@@ -1165,7 +1165,7 @@ class CTradeSpi(TraderApiWrapper):
     def OnRtnOrder(self, pOrder) -> None:
         #global tqueue
 #         logger.info("OnRtnOrder")
-        print('onRtnOrder',pOrder)
+        #print('onRtnOrder',pOrder)
         # print ("OrderStatus=",pOrder.OrderStatus)
         # print ("StatusMsg=",pOrder.StatusMsg)
         # print ("LimitPrice=",pOrder.LimitPrice)

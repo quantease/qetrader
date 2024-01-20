@@ -21,7 +21,7 @@ from .qestatistics import g_stat
 from .qebacktestmul import runBacktest, historyDataBackTest, dynamicBacktest
 from .qeredisdb import savePidToDB,saveStrategyfreqToDB,initMyredis
 #from .qecsvorder import qeCsvOrders
-from .qeglobal import  getAccidTraderQueue, setClassAccID
+from .qeglobal import   setClassAccID
 from .qesysconf import read_sysconfig
 #from .qecsvorder import g_csvorders
 try:
@@ -65,7 +65,7 @@ from .qeaccount import realAccountInfo
 
 processlist = []
 support_mds = ['ctp', 'stock'] ## support market data types
-curuser = 'test'
+#curuser = 'test'
 tdqueue_ready = False
 #simuqueue = Queue()
 master_strat_id = 10
@@ -105,12 +105,14 @@ def processFunc(processInfo):
     None.
 
     '''
-    global curuser
+    #global curuser
     try:
         #print(processInfo)
         #print(type(processInfo))
         
-
+        curuser  = processInfo['user'] if 'user' in processInfo else 'test'
+        
+        print('processInfo',processInfo['type'],curuser)
         if processInfo['type'] == 'market':
             if processInfo['name'].find('ctp') >= 0:
                 if processInfo['setting']:
@@ -189,7 +191,7 @@ def getAddress(user, mode, account, rfrate=0.02):
 
 def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_724=False, 
                      simnow724_account=None, md=['ctp'], printlog=True, rfrate=0.02, record_strat=False, async_strats=False):
-    global processlist, curuser, master_strat_id
+    global processlist,  master_strat_id
     #if not ignorepass and not checkUserValid(user):
     #    print(u'您的用户名或密码不正确。')
     #    return
@@ -344,7 +346,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
             # strat.addQueue('strat',stratQueue)
             # strat.addQueue('td',traderqueue)
     
-            strategy = qeStratProcess(strat.name,  stratQueue)
+            strategy = qeStratProcess(strat.name, curuser, stratQueue)
             ishedgemodel = checkformula(strat)
             strategy.hedgemodel = ishedgemodel
             strategy.formula = strat.formula
@@ -370,7 +372,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
             #print(strat.wait_all)
             stratSetts['async'] = False
             stratSetts[strat.name] ={'queue':stratQueue,'instid':strat.instid, 'strat':strat,'datamode':strat.datamode}
-            stratprocess = {'type': 'strat', 'name': strat.name, 'strat': strat, 'data': strategy,'tqueue': simuqueue}
+            stratprocess = {'type': 'strat','user':curuser, 'name': strat.name, 'strat': strat, 'data': strategy,'tqueue': simuqueue}
             # stratprocess = {'type':'strat','name':strat.name,'insts':transInstIDs( strat.insts), 'queue':stratqueue}
             processlist.append(stratprocess)
     else:
@@ -384,7 +386,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
         for strat in strats:
             strat.user = curuser
             strat.hedgemodel = checkformula(strat)
-        stratprocess = {'type': 'strat', 'name': 'asyncstrat', 'strat': strats, 'data': strategy}
+        stratprocess = {'type': 'strat','user':curuser, 'name': 'asyncstrat', 'strat': strats, 'data': strategy}
     #queuesett ={'runmode':'simu','queue': simuqueue}
     
         stratSetts ={'async':True,'queue':stratQueue,'strat':strats, 'recmode': record_strat,'tqueue': simuqueue}   
@@ -392,14 +394,14 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
     m_processlist = []
     for m in md:
         mode724 = mode_724 if m.find('ctp') >=0 else False
-        mdprocess = {'type': 'market', 'name': m, 'setting': settings,"mode_724":mode724,'strats':stratSetts, 'runmode':'simu'}
+        mdprocess = {'type': 'market','user':curuser, 'name': m, 'setting': settings,"mode_724":mode724,'strats':stratSetts, 'runmode':'simu'}
         if m in support_mds:
             m_processlist.append(mdprocess)
 
-    traderprocess = {'type': 'trader', 'name': 'ctp', 'insts': [], 'token':token,"mode_724":mode_724,'strats':stratSetts,'tqueue': simuqueue}
+    traderprocess = {'type': 'trader', 'user':curuser,'name': 'ctp', 'insts': [], 'token':token,"mode_724":mode_724,'strats':stratSetts,'tqueue': simuqueue}
     processlist.append(traderprocess)
     ## add market interface thread
-    minprocess = {'type': 'marketin', 'name': 'interface', 'setting': settings,"mode_724":mode_724,'strats':stratSetts,'runmode':'simu','tqueue': simuqueue}
+    minprocess = {'type': 'marketin', 'user':curuser,'name': 'interface', 'setting': settings,"mode_724":mode_724,'strats':stratSetts,'runmode':'simu','tqueue': simuqueue}
     processlist.append(minprocess)
 
     stgsetts = {}
@@ -441,7 +443,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
 
 
 def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, mode_724=False,  riskctlparas=None,printlog=True,rfrate=0.02, record_strat=False, async_strats=False, skip_settle_check=False):
-    global processlist, curuser, master_strat_id
+    global processlist, master_strat_id
     #if not ignorepass and not checkUserValid(user):
     #    print(u'您的用户名或密码不正确。')
     #    return
@@ -651,6 +653,11 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
         #    if 'dailymax' in riskctlparas:
         #        ctpriskctl.setDailyMax(riskctlparas['dailymax'])
         
+        ## add trader process queue
+        realTQueues = {}
+        for  j  in range(len(user_setting)):
+            realTQueues[j] = Queue()
+
         stratQueues = {}
         stratSetts = {}
         for strat in strats:
@@ -660,7 +667,7 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
             #         print(strat.instid)
             #         print(strat.instid_ex)
 
-            strategy = qeStratProcess(strat.name, stratQueue, True)  # realtrade
+            strategy = qeStratProcess(strat.name, curuser, stratQueue, True)  # realtrade
             ishedgemodel = checkformula(strat)
             strategy.hedgemodel = ishedgemodel
             strategy.formula = strat.formula
@@ -689,7 +696,7 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
             
             stratQueues[strat.name] = {'instid':strat.instid, 'queue':stratQueue,'datamode':strat.datamode}
 
-            stratprocess = {'type': 'strat', 'name': strat.name, 'strat': strat, 'data': strategy}
+            stratprocess = {'type': 'strat', 'user':curuser,'name': strat.name, 'strat': strat, 'data': strategy, 'tqueue': realTQueues}
 
             processlist.append(stratprocess)
 
@@ -699,16 +706,16 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
             sett = user_setting[j]
             
             if not sett['api'] in mdlist and sett['api'] in support_mds:
-                mdprocess = {'type': 'market', 'name': sett['api'], 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
+                mdprocess = {'type': 'market','user':curuser, 'name': sett['api'], 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
                 m_processlist.append(mdprocess)
                 mdlist.append(sett['api'])
             accounts[j].token = token
-            tdprocess = {'type': 'realtrader', 'name': sett['api'],'class':sett['class'], 'setting': sett,"mode_724":mode_724,'strats':stratQueues,'account':accounts[j], 'queue':getAccidTraderQueue(j)}
+            tdprocess = {'type': 'realtrader', 'user':curuser,'name': sett['api'],'class':sett['class'], 'setting': sett,"mode_724":mode_724,'strats':stratQueues,'account':accounts[j], 'queue':realTQueues[j]}
             processlist.append(tdprocess)
             print('add trader',sett['api'],sett['class'],j)
 
         ## add market interface thread
-        minprocess = {'type': 'marketin', 'name': 'interface', 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
+        minprocess = {'type': 'marketin', 'user':curuser,'name': 'interface', 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real','tqueue': realTQueues}
         processlist.append(minprocess)
 
         stgsetts = {}
@@ -761,7 +768,8 @@ def runProcessPool(processlist, m_data_slides, m_instIDs):
         results = pool.map(processFunc, processlist)
 
 def runMarketProcess(processInfo, m_data_slides, m_instIDs, m_lock):
-    global curuser
+    #global curuser
+    curuser = processInfo['user']
     print('market',processInfo['name'])
     if processInfo['name']=='ctp':
         setting = processInfo['setting'] if processInfo['setting'] else None

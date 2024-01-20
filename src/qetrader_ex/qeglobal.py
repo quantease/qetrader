@@ -123,22 +123,22 @@ g_userinfo = globalInfo()
 #def getValidInstIDs(instids):
 #    return [getValidInstID(inst) for inst in instids]
         
-realQueues = {}
+#realQueues = {}
 mapClassIDs = {}
 
-def getAccidTraderQueue(accid):
-    global realQueues
-    #classname = getInstClass(instid)
-    if not accid in realQueues:
-        realQueues[accid] = Queue()
-    return realQueues[accid]
+# def getAccidTraderQueue(accid):
+    # global realQueues
+    # #classname = getInstClass(instid)
+    # if not accid in realQueues:
+        # realQueues[accid] = Queue()
+    # return realQueues[accid]
 
-def getInstTraderQueue(instid):
-    queues = []
-    accids  = getInstAccID(instid)
-    for acc in accids:
-        queues.append(getAccidTraderQueue(acc))
-    return queues
+#def getInstTraderQueue(instid):
+#    queues = []
+#    accids  = getInstAccID(instid)
+#    for acc in accids:
+#        queues.append(getAccidTraderQueue(acc))
+#    return queues
 
 
 def getClassInstIDs(instIDs, classnames):

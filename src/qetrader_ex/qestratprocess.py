@@ -95,7 +95,7 @@ def getDailyCloseTime(instid, leftminu):
     return datetime.strptime(endday+str(endt)+'00', '%Y-%m-%d %H%M%S') - timedelta(minutes=leftminu)
             
 class qeStratProcess:
-    def __init__(self, name, Queue, realTrade=False):
+    def __init__(self, name,user, Queue, realTrade=False):
 
         self.instid = []          # list of instrument
         #self.instid_ex = []
@@ -111,7 +111,7 @@ class qeStratProcess:
         self.printlog = True
         self.hedgemodel_price = 0
         self.hedgemodel_time = 0
-        self.user = "unknown"
+        self.user =  user
         self.token = ''
         self.Timer_interval = 30
         self.work = True

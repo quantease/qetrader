@@ -14,7 +14,7 @@ import numpy as np
 #import datetime
 from .qesimtrader import getMixPrice
 from .qestatistics import g_stat
-from .qeglobal import getAccidTraderQueue, getInstTraderQueue, getInstClass, getInstAccID, getClassAccID
+from .qeglobal import getInstClass, getInstAccID, getClassAccID
 from datetime import datetime, timedelta
 import traceback
 import random
