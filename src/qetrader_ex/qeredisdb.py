@@ -126,6 +126,8 @@ def saveMarketToDB(instid, time, datastr):
     additem = {datastr: int(time)}
     myredis.zadd('sysgen_mdata_' + instid, additem)
 
+
+
 @check_myredis
 def resetMarketData(instid, before_time):
     #myredis.delete('sysgen_mdata_' + instid)

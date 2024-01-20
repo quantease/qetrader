@@ -6,7 +6,7 @@ Created on Wed Nov  3 11:30:36 2021
 """
 
 from multiprocessing.dummy import Pool
-from multiprocessing import Queue, cpu_count
+from multiprocessing import Queue, cpu_count,Process, Manager, freeze_support
 from .qectpmarket_wrap import runQEMarketProcess,  checkMarketTime
 #from .qectptrader import runQERealTraderProcess
 from .qectptrader_wrap import runQERealTraderProcess
@@ -672,13 +672,13 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
             processlist.append(stratprocess)
 
         mdlist = []
-        
+        m_processlist = []
         for j  in range(len(user_setting)):
             sett = user_setting[j]
             
             if not sett['api'] in mdlist:
                 mdprocess = {'type': 'market', 'name': sett['api'], 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
-                processlist.append(mdprocess)
+                m_processlist.append(mdprocess)
                 mdlist.append(sett['api'])
             accounts[j].token = token
             tdprocess = {'type': 'realtrader', 'name': sett['api'],'class':sett['class'], 'setting': sett,"mode_724":mode_724,'strats':stratQueues,'account':accounts[j], 'queue':getAccidTraderQueue(j)}
@@ -705,11 +705,35 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
         saveStrategyfreqToDB(curuser,token, freq)
         
         #saveImageSettingDataRealToDB(curuser, stgimagesetts)
+        freeze_support()
+        m = Manager()
+        m_data_slides = m.dict()
+        m_instIDs = m.dict()
+        m_traderqueue = m.Queue()
 
-        with Pool(max(int(cpu_count()), 10)) as pool:
-            results = pool.map(processFunc, processlist)
+        time.sleep(0.01)
+        p1 = Process(target=runProcessPool, args=(processlist, m_data_slides, m_instIDs, m_traderqueue))
+        p2 = Process(target=runMarketProcess, args=(data_args, m_data_slides, m_instIDs, m_traderqueue))
+        p1.start()
+        p2.start()
+        p1.join()
+        p2.join()
     except Exception as e:
         logger.error("qemain_begin: " + str(e), exc_info=True)
+
+
+def runProcessPool(processlist, m_data_slides, m_instIDs):
+    for process in processlist:
+        if process['type'] == 'realtrader':
+            process['dataslides'] = m_data_slides
+            process['instIDs'] = m_instIDs
+            process['queue'] = m_traderqueue
+
+    with Pool(max(int(cpu_count()), 10)) as pool:
+        results = pool.map(processFunc, processlist)
+
+def runMarketProcess(data_args, m_data_slides, m_instIDs, m_traderqueue):
+    pass
 
 def isDataModeValid(datamode):
     import re
@@ -846,6 +870,8 @@ def runStrat(user, runmode, strat,  simu_token=None, simu_md=['ctp'],mode_724=Fa
             return           
     if not initMyredis():
         return
+
+
     if runmode == 'test':
         ## deal with strat
         #instids = getValidInstIDs(instids)

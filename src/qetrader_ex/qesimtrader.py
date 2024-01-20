@@ -845,8 +845,8 @@ class QEsimtrader(object):
         #self.g_order_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
         #self.g_trade_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
         simuaccount.crossday()
-        simuaccount.setTradingDay(d['tradingDay'])
-        self.curday = d['tradingDay']
+        simuaccount.setTradingDay(d['tradingday'])
+        self.curday = d['tradingday']
        
         
         
