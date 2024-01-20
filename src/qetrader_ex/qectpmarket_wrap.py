@@ -4,20 +4,23 @@ Created on Wed Oct 13 17:35:49 2021
 
 @author: ScottStation
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time
 import json
-#import os
+import os
 from .qetype import qetype
 import copy
 import threading
-from .qelogger import logger
-from .qecontext import transInstID2Real,transInstID2Context
+import logging
+#from .qeglobal import  getPlatform
+from logging.handlers import TimedRotatingFileHandler 
+##from .qelogger import logger
+#from .qecontext import transInstID2Real,transInstID2Context
 ##from qesimtrader import marketReadyNotice
-from .qeredisdb import saveMarketToDB, resetMarketData
-from .qestatistics import getPrevTradingDay
+#from .qeredisdb import saveMarketToDB, resetMarketData
+#from .qestatistics import getPrevTradingDay
 #from .qeglobal import getInstTraderQueue,  getAccidTraderQueue
-from .qeglobal import getClassInstIDs
+#from .qeglobal import getClassInstIDs
 #from .qeinterface import simuqueue
 #from qesdk import get_valid_instID
 #from .qeglobal import g_dataSlide
@@ -27,6 +30,7 @@ from .qeglobal import getClassInstIDs
 '''
 
 import typing
+import platform
 from typing import Optional
 
 from ctpwrapper.ApiStructure import (FensUserInfoField, UserLogoutField,
@@ -40,6 +44,85 @@ str2bytes = lambda x:bytes(x,'utf-8')
 mduserspi = None
 timer = None
 g_mode_724=False
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)  # Log等级总开关
+try:
+    from .qedockerconfig import log_path
+    logger_path = log_path
+except:
+    logger_path = os.path.abspath(os.path.dirname(__file__))
+    logger_path = logger_path +'/qelog' if platform.system().lower()=='linux' else logger_path +'\\qelog'
+    connector = '/' if platform.system().lower()=='linux' else '\\'
+
+
+def transInstID2Real(instids):
+    instIDs = []
+    
+    exID_list = []
+    for instid in instids:
+        exID = instid[-3:]
+        instID = instid[:-4]
+        if exID == 'ZCE' or exID == 'CCF':
+            instID = instID.upper()
+        else:
+            instID = instID.lower()
+        if exID == 'ZCE':
+            instID = instID[:2] + instID[3:]
+        instIDs.append(instID)    
+        exID_list.append(exID)
+    return instIDs,exID_list
+
+def transInstID2Context(instID, exID):
+    if exID == 'ZCE':
+        return instID[:2]+'2'+instID[2:]+'.'+exID
+    else:
+        return instID.upper()+'.'+exID
+
+
+
+def getInstClass(instid):
+    if instid[-3:] =='SSE':
+        if len(instid) == 10:
+            return 'stock'
+        else:
+            return 'stockoption'
+    elif instid[-3:] == 'SGE':
+        return 'gold'
+    else:
+        return 'future'
+def getClassInstIDs(instid):
+    insts = []
+    for inst in instid:
+        if getInstClass(inst) == 'future':
+            insts.append(inst)
+    return insts
+
+
+def initLogger(printlog=True):
+    global logger, logger_path
+    #printlog = True
+    if not os.path.exists(logger_path):
+        os.mkdir(logger_path)
+    
+    fh = TimedRotatingFileHandler(filename=f"{logger_path}{connector}marketlog", when="D", interval=1, backupCount=5)
+    fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
+    ch = logging.StreamHandler()
+    if printlog:
+        ch.setLevel(logging.WARNING)  # 输出到console的log等级的开关
+        logging.captureWarnings(True)
+    else:
+        ch.setLevel(logging.CRITICAL)  # 输出到console的log等级的开关
+        logging.captureWarnings(False)
+    # 第三步，定义handler的输出格式
+    formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+    formatter.converter = lambda *args: datetime.now(tz=timezone(timedelta(hours=8))).timetuple()
+    fh.setFormatter(formatter)
+    # 第四步，将logger添加到handler里面
+    logger.addHandler(fh)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
 
 def getLocalTradingDay(now):
     if now.hour < 19:
@@ -480,7 +563,7 @@ class CFtdcMdSpi(MdApiWrapper):
         realInstSet.update(self.subID)
         for name in self.stratInsts:
             instid = self.stratInsts[name]
-            insts = getClassInstIDs(instid, ['future'])
+            insts = getClassInstIDs(instid)
             self.curInstSet.update(insts)
             self.stratInsts[name] = insts
             realinsts, exids = transInstID2Real(insts)
@@ -496,9 +579,9 @@ class CFtdcMdSpi(MdApiWrapper):
                 if not rinst in self.subID:
                     instIDs.append(rinst)
             #self.SubscribeMarketData(instIDs)
-            before_time = getPrevTradingDay(now) + '160000000'    
-            for inst in instIDs:
-                resetMarketData(inst, before_time)
+            # before_time = getPrevTradingDay(now) + '160000000'    
+            # for inst in instIDs:
+            #     resetMarketData(inst, before_time)
             self.subID = list(realInstSet)
         
         #if self.recmode:
@@ -516,7 +599,7 @@ class CFtdcMdSpi(MdApiWrapper):
                 continue
 
             cur_insts = localInsts[name]
-            new_insts = getClassInstIDs(cur_insts, ['future'])
+            new_insts = getClassInstIDs(cur_insts)
             self.stratInsts[name] = new_insts
             newSet.update(new_insts)
 
@@ -554,7 +637,7 @@ class CFtdcMdSpi(MdApiWrapper):
         #if name in self.strats:
         #    self.strats[name]['instid'] = instIDs
         if name in self.stratInsts:
-            instIDs = getClassInstIDs(instIDs, ['future'])
+            instIDs = getClassInstIDs(instIDs)
             newSet = set()
             self.stratInsts[name] = instIDs
             #print(instIDs, name, self.stratInsts)
@@ -675,7 +758,8 @@ class CFtdcMdSpi(MdApiWrapper):
 
 def runQEMarketProcess(user, passwd, strats,runmode, setting_dict, data_slides,instIDs, m_lock, mode_724=False):
     global mduserspi, g_mode_724, timer
-    print('RunMarket')     
+    initLogger()
+    print('RunMarket logger initialized')     
     evalmode = False
     if setting_dict is not None and setting_dict['api'] == 'ctptest':
         evalmode = True

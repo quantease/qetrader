@@ -10,9 +10,11 @@ import json
 #import os
 from .qetype import qetype
 from .qeglobal import getAccidTraderQueue, g_dataSlide
-from .qeinterface import simuqueue
+from .qeredisdb import saveMarketToDB, resetMarketData
+from .qestatistics import getPrevTradingDay
+#from .qeinterface import simuqueue
 from .qelogger import logger
-from .qeredisdb import saveMarketToDB
+
 import copy
 
 '''
@@ -29,6 +31,7 @@ import copy
 g_mode_724=False
 market_ready = False
 strat_instIDs = {}
+cur_insts = set()
 instID_update = False
 
         
@@ -54,9 +57,20 @@ def getMarketReady():
 
 
 def changeCtpInstIDs(stratName, instIDs):
-    global strat_instIDs, instID_update
+    global strat_instIDs, instID_update,cur_insts
     instID_update = True
     strat_instIDs[stratName] = instIDs
+    curset = set()
+    for key in strat_instIDs:
+        curset.update(strat_instIDs[key])
+    for inst in cur_insts:
+        if not inst in curset:
+            print('add inst',inst)
+            resetOldMarketData(inst, datetime.now())
+    
+    cur_insts = curset
+
+
 
 def save_tick_data(tickdata):
     for inst in tickdata:
@@ -65,10 +79,12 @@ def save_tick_data(tickdata):
             timedigit = tickdata[inst]['timedigit']
             saveMarketToDB(inst, str(timedigit), datastr)
 
-def update_data(strats, data, runmode):    
+def update_data(strats, data):    
     try:
         assert 'type' in data and 'data' in data, 'incorrect data format'
         assert data['type'] == qetype.KEY_NEW_MARKET_DATA, 'incorrect data type'
+
+      
         if strats['async']:
             strats['queue'].put(data)
         else:
@@ -79,17 +95,15 @@ def update_data(strats, data, runmode):
 
 
 
-        if runmode == 'simu':
-            simuqueue.put(data)
         
 
     except Exception as e:
         logger.error(f"CTP market interface callback error {e}",exc_info=True )      
 
-def cross_day(data, runmode):
+def cross_day(data, runmode,tqueue):
     try:
         if runmode == 'simu':
-            simuqueue.put(data)               
+            tqueue.put(data)               
         else:
             queues = getAccidTraderQueue(0) #getInstTraderQueue(d['instid'])
             for queue in queues:
@@ -98,31 +112,44 @@ def cross_day(data, runmode):
     except Exception as e:
         logger.error(f"CTP market interface crossday error {e}",exc_info=True )
 
+def resetOldMarketData(instIDs, now):
+    before_time = getPrevTradingDay(now) + '160000000'    
+    for inst in instIDs:
+        resetMarketData(inst, before_time)
 
 
-
-
-def runMarketInterface(strats, runmode,  data_slides, instIDs,mode_724=False):
+def runMarketInterface(strats, runmode,  data_slides, instIDs, tqueue,mode_724=False):
     ### 1. 接受行情服务消息 updateData
     ### 2. 接受策略服务消息 updateInstIDs
     ### 3. 接受交易服务消息 updateInstIDs
     ### 4. 接受行情服务消息 market_ready
-    global strat_instIDs, instID_update, market_ready, g_mode_724
+    global strat_instIDs, instID_update, market_ready, g_mode_724,cur_insts
     last_trading_day = ""
     last_timedigit = 0
     last_save_timedigit = 0
     g_mode_724 = mode_724
+    origin_instIDs = {}
     
     instSave = False
     if strats['async']:    
         for s in strats['strat']:
             if s.datamode == 'tick':
                 instSave = True
+            origin_instIDs[s.name] = s.instid
             
     else:
         for name in strats:
             if name != 'async':
                 instSave = strats[name]['strat'].datamode == 'tick'
+                origin_instIDs[name] = strats[name]['strat'].instid
+    for key in origin_instIDs:
+        strat_instIDs[key] = origin_instIDs[key]
+        cur_insts.update(origin_instIDs[key])
+        instIDs[key] = origin_instIDs[key]
+    now = datetime.now()
+    for inst in cur_insts:
+        resetOldMarketData(inst, now)
+    instIDs['lastupdate'] = now.strftime('%Y%m%d%H%M%S%f')
 
     while True:
         #print('interface of market')
@@ -134,7 +161,9 @@ def runMarketInterface(strats, runmode,  data_slides, instIDs,mode_724=False):
             d['data'] = data_slides.copy()
             
             g_dataSlide.updateEx(data_slides.copy())
-            update_data(strats, d, runmode)
+            update_data(strats, d)
+            if runmode == 'simu':
+                tqueue.put(d)
             if instSave and last_save_timedigit <= data_slides['lastdigit']-500:
                 last_save_timedigit = data_slides['lastdigit']
                 save_tick_data(g_dataSlide)
@@ -149,7 +178,12 @@ def runMarketInterface(strats, runmode,  data_slides, instIDs,mode_724=False):
                 cd_data = {}
                 cd_data['type'] = qetype.KEY_ON_CROSS_DAY
                 cd_data['tradingday'] = last_trading_day
-                cross_day(cd_data, runmode)
+                #cross_day(cd_data, runmode)
+                if runmode == 'simu':
+                    tqueue.put(cd_data)
+                else:
+                    for key in tqueue:
+                        tqueue[key].put(cd_data)
                 
         if 'market_ready' in data_slides and data_slides['market_ready']:
             market_ready = True

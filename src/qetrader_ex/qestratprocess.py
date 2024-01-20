@@ -153,19 +153,19 @@ class qeStratProcess:
                 
         return False
     
-    def stratProcess(self, strat):
+    def stratProcess(self, strat, tqueue):
         global info_time
         print(u"策略进程启动成功；"+str(strat.name))
         logger.info(u"策略进程启动成功；"+str(strat.name))
         logger.info("strat user "+str(self.user))
-        print('strat user',self.user, strat.user)
         context = qeContextBase(self.instid)
         #g_userinfo = globalInfo()  
         #print(g_userinfo.info_time,'#')
         #print(1)
-        self.user = strat.user
-        context.user = strat.user
+        context.tqueue = tqueue
+        context.user = self.user
         context.token = self.token
+        print('stratprocess',self.user,self.token)
         context.hedgemodel = self.hedgemodel
         context.printlog = self.printlog
         context.trader = self.trader
@@ -368,7 +368,6 @@ class qeStratProcess:
                 saveSettingDataToDB(self.user, self.token,  stgsett)
             elif context.runmode == 'real':
                 stgsett = loadSettingDatareal(self.user, self.token)
-                #print('loadstgsett',self.user, self.token, stgsett)
                 stgsett[self.name] = new
                 saveSettingDatarealToDB(self.user, self.token, stgsett)
         

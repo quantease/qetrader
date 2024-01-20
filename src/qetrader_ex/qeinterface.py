@@ -21,7 +21,7 @@ import random
 import asyncio
 
 
-simuqueue = Queue()
+#simuqueue = Queue()
 
 class qeStratBase:
     flippage = 0
@@ -287,7 +287,8 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
     accid = getInstAccID(instid)[0] if accid < 0 else accid
     if accid >= len(context.accounts):
         accid = len(context.accounts)-1
-    traderqueue = getAccidTraderQueue(accid) if context.runmode=='real' else simuqueue    
+    #traderqueue = getAccidTraderQueue(accid) if context.runmode=='real' else simuqueue   
+    traderqueue = context.tqueue[accid] if context.runmode=='real' else context.tqueue
     #    if soptriskctl.newCount() == -1:
     #        logger.warning("Risk Control: order numbers exceed maxium of a day.")
     #        return -2
@@ -411,6 +412,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
                     temporder['orderid'] = context.orderid
                     orderids.append(context.orderid)
                     traderqueue.put(temporder)
+                    print('make order:', accid, context.orderid, instid, direction, price, closevol[i], closetype)
             if success == 0:
                 return rc, []
         else:            
@@ -446,6 +448,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
             temporder['orderid'] = context.orderid
             orderids.append(context.orderid)
             traderqueue.put(temporder)
+            print('make order:', accid, context.orderid, instid, direction, price, volume, closetype)
     
         return 0, orderids
     except Exception as e:
@@ -468,7 +471,7 @@ def real_cancel_order(context, orderid):
 
     '''
     #global traderqueue
-    traderqueue = None 
+    traderqueue = None
    
     try:
         ret = -1
@@ -482,6 +485,7 @@ def real_cancel_order(context, orderid):
                 #for oid in context.orders:
                 if context.orders[oid]['leftvol'] > 0:
                     accid = context.orders[oid]['accid']
+                    traderqueue = context.tqueue[accid] if context.runmode=='real' else context.tqueue
                     instid = order['instid']
                     totalnum += 1
                     rc = context.accounts[accid].riskctl.cancel_order(context, oid)
@@ -505,10 +509,8 @@ def real_cancel_order(context, orderid):
                         temporder['type'] = qetype.KEY_CANCEL_ORDER
                         temporder['stratName'] = context.stratName
                         temporder['orderid'] = orderid
-                        if context.runmode == 'real':
-                                    getAccidTraderQueue(accid).put(temporder)
-                        else:
-                                    simuqueue.put(temporder)
+                        traderqueue.put(temporder)
+
                         ## set the remake count to zero
             print(context.curtime, 'cancel all order')
             logger.info('cancel all order')
@@ -525,7 +527,7 @@ def real_cancel_order(context, orderid):
                     logger.warning(f'风控模块阻止撤单 {orderid}: error code:{rc}')
                     return rc
                 #if True : #not context.realTrade:
-                traderqueue = getAccidTraderQueue(accid)
+                traderqueue = context.tqueue[accid] if context.runmode=='real' else context.tqueue
                 #if classname == 'stockoption':
                 #    if soptriskctl.newCount() == -1:
                 #        logger.warning("Risk Control: order numbers exceed maxium of a day.")
@@ -577,10 +579,10 @@ def real_cancel_order(context, orderid):
                 temporder['type'] = qetype.KEY_CANCEL_ORDER
                 temporder['stratName'] = context.stratName
                 temporder['orderid'] = orderid
-                if context.runmode =='real':
-                    traderqueue.put(temporder)
-                else:
-                    simuqueue.put(temporder)
+                
+                traderqueue.put(temporder)
+                
+                
         return ret
     except Exception as e:
         logger.error("Failed on cancel order: ", e.__traceback__.tb_lineno, e)

@@ -84,25 +84,30 @@ def initLogger(userid,real=False, printlog=True):
         
           
     except Exception as e:
-        logger.error('qelogger '+str(e),exc_info=True) 
+        #logger.error('qelogger '+str(e),exc_info=True) 
+        print(f'qelogger` {e}')
 
-    fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
-    ch = logging.StreamHandler()
-    if printlog:
-        ch.setLevel(logging.WARNING)  # 输出到console的log等级的开关
-        logging.captureWarnings(True)
-    else:
-        ch.setLevel(logging.CRITICAL)  # 输出到console的log等级的开关
-        logging.captureWarnings(False)
+    try:
+        fh.setLevel(logging.DEBUG)  # 输出到file的log等级的开关
+        ch = logging.StreamHandler()
+        if printlog:
+            ch.setLevel(logging.WARNING)  # 输出到console的log等级的开关
+            logging.captureWarnings(True)
+        else:
+            ch.setLevel(logging.CRITICAL)  # 输出到console的log等级的开关
+            logging.captureWarnings(False)
 
-    # 第三步，定义handler的输出格式
-    formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-    formatter.converter = lambda *args: datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=8))).timetuple()
-    fh.setFormatter(formatter)
-    # 第四步，将logger添加到handler里面
-    logger.addHandler(fh)
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
+        # 第三步，定义handler的输出格式
+        formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+        formatter.converter = lambda *args: datetime.datetime.now(tz=datetime.timezone(datetime.timedelta(hours=8))).timetuple()
+        fh.setFormatter(formatter)
+        # 第四步，将logger添加到handler里面
+        logger.addHandler(fh)
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+    except Exception as e:
+        #logger.error('qelogger '+str(e),exc_info=True) 
+        print(f'qelogger2 {e}')
 
    
 def initTableLogger():    

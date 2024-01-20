@@ -16,7 +16,7 @@ from .qestratprocess import qeStratProcess
 from .qeasyncstrat import qeAsyncStratProcess
 from .qelogger import logger, initLogger
 #from .qeriskctl import soptriskctl, ctpriskctl
-from .qeinterface import qeStratBase, simuqueue
+from .qeinterface import qeStratBase
 from .qestatistics import g_stat
 from .qebacktestmul import runBacktest, historyDataBackTest, dynamicBacktest
 from .qeredisdb import savePidToDB,saveStrategyfreqToDB,initMyredis
@@ -67,7 +67,7 @@ processlist = []
 support_mds = ['ctp', 'stock'] ## support market data types
 curuser = 'test'
 tdqueue_ready = False
-
+#simuqueue = Queue()
 master_strat_id = 10
 
 
@@ -125,12 +125,12 @@ def processFunc(processInfo):
                 runStockMarketProcess(curuser,'888888',processInfo['strats'],processInfo['runmode'])
                 logger.info("add stock Market") 
         elif processInfo['type'] == 'marketin':
-            runMarketInterface(processInfo['strats'], processInfo['runmode'], processInfo['dataslides'], processInfo['instids'], processInfo['mode_724'])
+            runMarketInterface(processInfo['strats'], processInfo['runmode'], processInfo['dataslides'], processInfo['instids'], processInfo['tqueue'],processInfo['mode_724'])
             logger.info("add market interface")
         elif processInfo['type'] == 'trader':
             logger.info("add simulation Trader")
             # balance=processInfo['balance']
-            runQETraderProcess(curuser, processInfo['token'],processInfo['strats'] ,simuqueue, processInfo['mode_724'])
+            runQETraderProcess(curuser, processInfo['token'],processInfo['strats'] ,processInfo['tqueue'], processInfo['mode_724'])
             #tdqueue_ready = True
         #             runQETraderProcess(curuser, '888888',None)
         elif processInfo['type'] == 'realtrader' :
@@ -140,12 +140,12 @@ def processFunc(processInfo):
                 sopttd(curuser, processInfo['account'],processInfo['class'], processInfo['strats'], processInfo['queue'] , processInfo['setting'], processInfo['mode_724'])
             #tdqueue_ready = True
         elif processInfo['type'] == 'strat':
-            print("add Strat: "+str(processInfo['name']))
+            print("add Strat: "+str(processInfo['name']+curuser))
             #print(processInfo['data'].freq)
             #apiset = processInfo['data'].mduser
                 
-            processInfo['data'].user = curuser
-            processInfo['data'].stratProcess(processInfo['strat'])
+            #rocessInfo['data'].user = curuser
+            processInfo['data'].stratProcess(processInfo['strat'],processInfo['tqueue'])
         elif processInfo['type'] == 'bar':
             udpClient_bar(processInfo['api'])
     except Exception as e:
@@ -292,6 +292,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
     print(str(getAddress(user, mode='simu',account=token,rfrate=rfrate)))
     curuser = user.replace('/', '')
     initLogger(curuser, False,printlog=printlog)
+    print('logger init',curuser)
     
     #if csv_orders:
     #    csvstrat = qeCsvOrders()
@@ -319,7 +320,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
     settings = d if mode_724 else None
     # watchdog_bar
     #wait_all=[]
-            
+    simuqueue = Queue()        
     #print(wait_all,"#")
     bar_flag = sum([strat.freq for strat in strats]) > 0
     if bar_flag:
@@ -349,6 +350,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
             strategy.formula = strat.formula
             strategy.printlog = printlog
             strat.user = curuser
+            strategy.user = curuser
             strategy.token = token
             strat.hedgemodel = ishedgemodel
             #strategy.instid_ex, strategy.exID = transInstID2Real(strat.instid)
@@ -368,7 +370,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
             #print(strat.wait_all)
             stratSetts['async'] = False
             stratSetts[strat.name] ={'queue':stratQueue,'instid':strat.instid, 'strat':strat,'datamode':strat.datamode}
-            stratprocess = {'type': 'strat', 'name': strat.name, 'strat': strat, 'data': strategy}
+            stratprocess = {'type': 'strat', 'name': strat.name, 'strat': strat, 'data': strategy,'tqueue': simuqueue}
             # stratprocess = {'type':'strat','name':strat.name,'insts':transInstIDs( strat.insts), 'queue':stratqueue}
             processlist.append(stratprocess)
     else:
@@ -385,7 +387,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
         stratprocess = {'type': 'strat', 'name': 'asyncstrat', 'strat': strats, 'data': strategy}
     #queuesett ={'runmode':'simu','queue': simuqueue}
     
-        stratSetts ={'async':True,'queue':stratQueue,'strat':strats, 'recmode': record_strat}
+        stratSetts ={'async':True,'queue':stratQueue,'strat':strats, 'recmode': record_strat,'tqueue': simuqueue}   
         processlist.append(stratprocess)
     m_processlist = []
     for m in md:
@@ -394,10 +396,10 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
         if m in support_mds:
             m_processlist.append(mdprocess)
 
-    traderprocess = {'type': 'trader', 'name': 'ctp', 'insts': [], 'token':token,"mode_724":mode_724,'strats':stratSetts}
+    traderprocess = {'type': 'trader', 'name': 'ctp', 'insts': [], 'token':token,"mode_724":mode_724,'strats':stratSetts,'tqueue': simuqueue}
     processlist.append(traderprocess)
     ## add market interface thread
-    minprocess = {'type': 'marketin', 'name': 'interface', 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
+    minprocess = {'type': 'marketin', 'name': 'interface', 'setting': settings,"mode_724":mode_724,'strats':stratSetts,'runmode':'simu','tqueue': simuqueue}
     processlist.append(minprocess)
 
     stgsetts = {}
@@ -703,6 +705,7 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
             accounts[j].token = token
             tdprocess = {'type': 'realtrader', 'name': sett['api'],'class':sett['class'], 'setting': sett,"mode_724":mode_724,'strats':stratQueues,'account':accounts[j], 'queue':getAccidTraderQueue(j)}
             processlist.append(tdprocess)
+            print('add trader',sett['api'],sett['class'],j)
 
         ## add market interface thread
         minprocess = {'type': 'marketin', 'name': 'interface', 'setting': sett,"mode_724":mode_724,'strats':stratSetts,'runmode':'real'}
