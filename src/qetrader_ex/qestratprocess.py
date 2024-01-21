@@ -474,7 +474,7 @@ class qeStratProcess:
                         saveHedgeMarketToDB(self.user,self.name, self.instid_hedge, self.hedgemodel_time, hd)
                         self.hedgemodel_time = context.timedigit
         except Exception as e:
-            logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
+            logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
  
     def updateData(self,d,context):
         try:
@@ -497,7 +497,7 @@ class qeStratProcess:
            
                                        
         except Exception as e:
-            logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
+            logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
 
     def calculatemul(self,context):
         a = [0, 0, 0, 0, 0]
