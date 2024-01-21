@@ -11,7 +11,7 @@ import traceback
 import csv
 import pandas as pd
 #import mysql.connector
-from .qelogger import logger
+#from .qelogger import logger
 from .qeglobal import get_riskctl_paras
 from .qeredisdb import saveRiskCtlRecord, loadRiskCtlRecord
 import json

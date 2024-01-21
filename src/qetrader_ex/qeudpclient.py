@@ -18,7 +18,7 @@ import time
 from datetime import datetime
 from threading import Timer, Lock
 from .qeglobal import g_userinfo, dbconfig
-from .qelogger import logger
+#from .qelogger import logger
 
 
 mutex = Lock()
@@ -47,7 +47,7 @@ def onTimer():
     global num
     setNum(num+1)
     if num > 8:
-        logger.warning("Watchdog timeout")
+        print("Watchdog timeout")
         setNum(0)
     timer = Timer(15, onTimer)
     timer.start()
@@ -77,7 +77,7 @@ def doConnect(host, port):
     return sock
 
 
-def udpClient(apiset):
+def udpClient(apiset,logger):
     global num,flag_bar_new,flag_bar_all, market_connected,host,port,avail_hosts,cur_host_id
 
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -144,9 +144,9 @@ def udpClient(apiset):
             logger.warning('\r\nother error occur: ', e)
             time.sleep(3)
         time.sleep(2)
-def udpClient_bar(apiset):
+def udpClient_bar(apiset,logger):
     onTimer()
-    udpClient(apiset)
+    udpClient(apiset,logger)
     
     
         

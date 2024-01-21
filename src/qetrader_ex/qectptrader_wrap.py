@@ -437,7 +437,7 @@ class qeCtpTrader(object):
             if d['from'] == 'RtnTrade':
                 self.callback(d)
                 ## update position at once
-                self.account.saveToDB()
+                self.account.saveToDB(self.logger)
                 dirstr = 'long' if d['dir']>0 else 'short'
                 self.account.updateWinLossParas(dirstr,  d['tradeprice'], d['tradevol'], d['closetype'], order['instid'])
 

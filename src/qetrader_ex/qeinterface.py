@@ -243,44 +243,44 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
         direction = int(direction)
         volume = int(volume)
     except Exception as e:
-        logger.warning("volume/direction must be digits." + str(direction) + '/' + str(volume), e)
+        context.logger.warning("volume/direction must be digits." + str(direction) + '/' + str(volume), e)
         return -1,[]
     if not ordertype in validtypes:
-        logger.warning("ordettype must be one of " + str(validtypes) + ",your ordertype:" + str(ordertype))
+        context.logger.warning("ordettype must be one of " + str(validtypes) + ",your ordertype:" + str(ordertype))
         return -1,[]
     if not closetype in validclosetypes:
-        logger.warning("closetype must be one of " + str(validclosetypes) + ',your closetype:' + str(closetype))
+        context.logger.warning("closetype must be one of " + str(validclosetypes) + ',your closetype:' + str(closetype))
         return -1,[]
     if not timecond in validtimeconds:
-        logger.warning("closetype must be one of " + str(validclosetypes) + ',your closetype:' + str(closetype))
+        context.logger.warning("closetype must be one of " + str(validclosetypes) + ',your closetype:' + str(closetype))
         return -1,[]
     if not action in validaction:
-        logger.warning("action must be one of " + str(validaction) + ',your action:' + str(action))
+        context.logger.warning("action must be one of " + str(validaction) + ',your action:' + str(action))
         return -1,[]
 
     if direction == 0:
-        logger.warning("Direction can not be zero. your direction: " + str(direction))
+        context.logger.warning("Direction can not be zero. your direction: " + str(direction))
         return -1,[]
     if ordertype =='market' and price == 0:
         price = context.getCurrent(instid)
     if volume <= 0 or price <= 0:
-        logger.warning("price and volume must be positive . current price:" + str(price) + ',volume:' + str(volume))
+        context.logger.warning("price and volume must be positive . current price:" + str(price) + ',volume:' + str(volume))
         return -1,[]
     if autoremake[0] == 1 and timecond != 'FAK':
-        logger.warning(f"FAK track mode 1 must set timecond to FAK but current is {timecond}")
+        context.logger.warning(f"FAK track mode 1 must set timecond to FAK but current is {timecond}")
         return -1,[]
     if autoremake[0] == 2 and timecond != 'GFD':
-        logger.warning(f"FAK track mode 2 must set timecond to GFD but current is {timecond}")
+        context.logger.warning(f"FAK track mode 2 must set timecond to GFD but current is {timecond}")
         return -1,[]
 
     #if action == 'close' and closetype == 'none':
-    #    logger.warning('closetype at close must be close,closetoday or closeyesterday')
+    #    context.logger.warning('closetype at close must be close,closetoday or closeyesterday')
     #    return -1
 
     #if action == 'close' and closetype == 'close':
 
     #    if instid[-3:] == 'SFE' or instid[-3:] == 'INE':
-    #        logger.warning('closetype must be closetoday or closeyesterday for instrument in SFE or INE')
+    #        context.logger.warning('closetype must be closetoday or closeyesterday for instrument in SFE or INE')
     #        return -1
 
     classname = getInstClass(instid)
@@ -290,10 +290,10 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
     #traderqueue = getAccidTraderQueue(accid) if context.runmode=='real' else simuqueue   
     traderqueue = context.tqueue[accid] if context.runmode=='real' else context.tqueue
     #    if soptriskctl.newCount() == -1:
-    #        logger.warning("Risk Control: order numbers exceed maxium of a day.")
+    #        context.logger.warning("Risk Control: order numbers exceed maxium of a day.")
     #        return -2
     #    elif soptriskctl.newCount() == -2:
-    #        logger.warning('Risk Control: order numbers exceed maxium of a second, try later.')
+    #        context.logger.warning('Risk Control: order numbers exceed maxium of a second, try later.')
     #        return -3 
         
         
@@ -363,12 +363,12 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
                     closevol = [ min(volume - yesvol, tvol - yesvol), yesvol]
                 else:
                     closevol = [ 0, volume]
-                logger.info(f'有昨仓:{instid}, {dirstr},{volume}, {yesvol}, {tvol}, {closevol}, {volOnRoad}')    
+                context.logger.info(f'有昨仓:{instid}, {dirstr},{volume}, {yesvol}, {tvol}, {closevol}, {volOnRoad}')    
             else:
                 closevol = [min(volume, tvol - yesvol), 0]
             
             if closevol[0]==0 and closevol[1]==0:
-                logger.info(f'没有可平仓:{instid}, {dirstr},{volume}, {yesvol}, {tvol}, {closevol}, {volOnRoad}')
+                context.logger.info(f'没有可平仓:{instid}, {dirstr},{volume}, {yesvol}, {tvol}, {closevol}, {volOnRoad}')
                 return -10,[]
             
             ordernum = 2 if closevol[0] != 0 and closevol[1] != 0 else 1
@@ -381,7 +381,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
                     rc = context.account.riskctl.make_order(context, closevol[i], instid, price, direction)
                     if rc < 0:
                         ctstr = '平今' if i == 0 else '平昨'
-                        logger.info(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction} {ctstr} {closevol[i]}")
+                        context.logger.info(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction} {ctstr} {closevol[i]}")
                         continue
                     success += 1
                     context.orderid = g_stat.getNewOrderID()
@@ -419,7 +419,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
             rc = context.account.riskctl.make_order(context, volume, instid, price, direction)
             #rc = context.account.riskctl.make_order(context)
             if rc < 0:
-                logger.info(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
+                context.logger.info(f"风控模块阻止下单: error code {rc} on {instid} {action} {direction}")
                 return rc,[]
             context.orderid = g_stat.getNewOrderID()
             temporder = {'instid': instid,
@@ -452,7 +452,7 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
     
         return 0, orderids
     except Exception as e:
-        logger.error("Failed on make order: " + str(e), exc_info=True)
+        context.logger.error("Failed on make order: " + str(e), exc_info=True)
         return -1,[]
 
 
@@ -494,7 +494,7 @@ def real_cancel_order(context, orderid):
                         dirstr = 'long' if context.orders[oid]['direction']>0 else 'short'
                         instid = context.orders[oid]['instid']
                         price = context.orders[oid]['price']
-                        logger.warning(f'风控模块阻止撤单: {oid} {instid}')
+                        context.logger.warning(f'风控模块阻止撤单: {oid} {instid}')
                         fmarg = context.getMargin(price, dirstr, context.orders[oid]['leftvol'], instid)
                         context.frozenMarg += fmarg
                         continue
@@ -513,7 +513,7 @@ def real_cancel_order(context, orderid):
 
                         ## set the remake count to zero
             print(context.curtime, 'cancel all order')
-            logger.info('cancel all order')
+            context.logger.info('cancel all order')
             context.stat.avail = context.stat.balance - context.marg - context.frozenMarg
 
         else:
@@ -524,7 +524,7 @@ def real_cancel_order(context, orderid):
                 accid = context.orders[orderid]['accid']
                 rc = context.accounts[accid].riskctl.cancel_order(context, orderid)
                 if rc  < 0:
-                    logger.warning(f'风控模块阻止撤单 {orderid}: error code:{rc}')
+                    context.logger.warning(f'风控模块阻止撤单 {orderid}: error code:{rc}')
                     return rc
                 #if True : #not context.realTrade:
                 traderqueue = context.tqueue[accid] if context.runmode=='real' else context.tqueue
@@ -573,7 +573,7 @@ def real_cancel_order(context, orderid):
                 
                 ## set the remake count to zero
                 #context.orders[orderid]['autoremake'][3] = 0 
-                logger.info(f'{ context.orders[orderid]["instid"]} Cancel order:{orderid}')
+                context.logger.info(f'{ context.orders[orderid]["instid"]} Cancel order:{orderid}')
                 print(f'{context.curtime} { context.orders[orderid]["instid"]} Cancel order:{orderid}')
                 temporder = {}
                 temporder['type'] = qetype.KEY_CANCEL_ORDER
@@ -585,7 +585,7 @@ def real_cancel_order(context, orderid):
                 
         return ret
     except Exception as e:
-        logger.error("Failed on cancel order: ", e.__traceback__.tb_lineno, e)
+        context.logger.error("Failed on cancel order: ", e.__traceback__.tb_lineno, e)
         return -1
 
 
@@ -605,11 +605,11 @@ def real_record_hedge_point(context, action, dirstr, volume):
     valid_direction = ['long', 'short']
 
     if not action in validaction:
-        logger.error("action must be one of " + str(validaction) + ',your action:' + str(action))
+        context.logger.error("action must be one of " + str(validaction) + ',your action:' + str(action))
         return
 
     if not dirstr in valid_direction:
-        logger.error("action must be one of " + str(valid_direction) + ',your direction:' + str(valid_direction))
+        context.logger.error("action must be one of " + str(valid_direction) + ',your direction:' + str(valid_direction))
         return
 
     if context.hedgemodel == False:
@@ -624,11 +624,11 @@ def real_record_hedge_point(context, action, dirstr, volume):
     d['price'] = calculatemul(context)
     #if context.realTrade:
     #    saveHedgePointrealToDB(context.user, context.token, context.stratName, context.timedigit, d)
-    #    logger.info('write hedge point to DB')
+    #    context.logger.info('write hedge point to DB')
 
     #else:
     saveHedgePointToDB(context.user, context.token, context.stratName, context.timedigit, d)
-    logger.info('write hedge point to DB')
+    context.logger.info('write hedge point to DB')
     return
 
 

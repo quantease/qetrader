@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 #import qedata
 from qesdk import is_valid_trade_time
-from .qelogger import logger
+#from .qelogger import logger
 import datetime
 from .qeglobal import getInstAccID,instSetts
 
@@ -66,7 +66,7 @@ class qeDataSet:
 
         LT = len(instid)
         if LT != len(data):
-            logger.info('Length of instrument is inconsistent to that of data')
+            print('Length of instrument is inconsistent to that of data')
         else:
 
             for i in range(LT):
@@ -147,10 +147,11 @@ def getProd(instid):
 
 class qeContextBase(object):
 
-    def __init__(self,instid):   
+    def __init__(self,instid,logger):   
                         # list
 
-        self.instid = instid     
+        self.instid = instid  
+        self.logger = logger   
         self.position = {}  #position = [{'long':{'volume':0,'poscost':0,'yesvol':0}, 'short':{'volume':0,'poscost':0,'yesvol':0}}]
         self.dataslide = {}
         #self.exchangeID = exchangeID
@@ -239,7 +240,7 @@ class qeContextBase(object):
             if field in self.dataslide[instid]:
                 return self.dataslide[instid][field]
             else:
-                logger.warning("Invalide field name",field)
+                self.logger.warning("Invalide field name",field)
 
         return 0    
     def getDayStart(self):
@@ -256,7 +257,7 @@ class qeContextBase(object):
                 if field in self.position[instid][direction]:
                     return self.position[instid][direction][field]
                 else:
-                     logger.warning("Invalide field name",field)
+                     self.logger.warning("Invalide field name",field)
                    
         return 0
 
@@ -270,7 +271,7 @@ class qeContextBase(object):
                     if field in self.account.position[instid][direction]:
                         return self.account.position[instid][direction][field]
                     else:
-                        logger.warning("Invalide field name",field)
+                        self.logger.warning("Invalide field name",field)
         elif accid < len(self.accounts):
             if instid in self.accounts[accid].position:
                 if direction in self.accounts[accid].position[instid]:
@@ -293,7 +294,7 @@ class qeContextBase(object):
                 marginrate = tempdata['marglong'] if bLong else tempdata['margshort']
             return price * marginrate/100 * vol * tempdata['volmult']
         else:
-            logger.warning(f"incorrect inst for getMargin {instid}")
+            self.logger.warning(f"incorrect inst for getMargin {instid}")
             #traceback.print_exc()
             return 0
     
@@ -313,7 +314,7 @@ class qeContextBase(object):
                 totalrate = tempdata['closetodayrate'] * (1 - yesrate) + yesrate
                 return totalrate *( tempdata['closefee']*vol + tempdata['closefeerate'] *vol*price*tempdata['volmult'])
         else:
-            logger.warning("incorrect inst for getCommission")
+            self.logger.warning("incorrect inst for getCommission")
             return 0
             
     def updateData(self):
@@ -402,13 +403,13 @@ class qeContextBase(object):
         return False
 
     def dayStatistics(self):
-        logger.info(f'{self.stratName}{self.curday}: orders-{self.stat.dayorders},cancels-{self.stat.daycancels},opens-{self.stat.dayopens},closes-{self.stat.daycloses}')
-        logger.info(f"{self.stratName}: totalpnl-"+str(round(self.stat.totalpnl, 2))+",totalfees-"+str(round(self.stat.totalfees, 2))+\
+        self.logger.info(f'{self.stratName}{self.curday}: orders-{self.stat.dayorders},cancels-{self.stat.daycancels},opens-{self.stat.dayopens},closes-{self.stat.daycloses}')
+        self.logger.info(f"{self.stratName}: totalpnl-"+str(round(self.stat.totalpnl, 2))+",totalfees-"+str(round(self.stat.totalfees, 2))+\
               ',balance-'+ str(round(self.stat.balance, 2)) +',accumlated return-'+str(round(100 * self.stat.accret, 2)) + '%')
 
     def totalStatistics(self):
-        logger.info(f"Total statistics of {self.stratName}:") 
-        logger.info(f"{self.stratName} totalpnl-"+str(round(self.stat.totalpnl, 2))+ ",totalfees-"+str(round(self.stat.totalfees, 2),)+',maxmargin-'+\
+        self.logger.info(f"Total statistics of {self.stratName}:") 
+        self.logger.info(f"{self.stratName} totalpnl-"+str(round(self.stat.totalpnl, 2))+ ",totalfees-"+str(round(self.stat.totalfees, 2),)+',maxmargin-'+\
               str(round(self.maxmarg, 2)) + \
               ',balance-'+str(round(self.stat.balance, 2)) + ',accumlated return-' + \
               str(round(100 * self.stat.accret, 2)) + '%')
@@ -534,7 +535,7 @@ class qeContextBase(object):
             self.updateFrozenMarg()
             return result
         except Exception as e:
-            logger.error(f"Add trade fail on {e}",exc_info=True)
+            self.logger.error(f"Add trade fail on {e}",exc_info=True)
             return None
 
     def getPosProf(self):
@@ -735,7 +736,7 @@ class qeContextBase(object):
         
     def getCloseProf(self, instid, price, dirstr, vol):
         volMult = self.instsett[instid]['volmult']
-        #logger.info(f'closeProf: {volMult}, {self.position[instid]}, {dirstr}, {vol}')
+        #self.logger.info(f'closeProf: {volMult}, {self.position[instid]}, {dirstr}, {vol}')
         if dirstr == 'long':
             return volMult * vol * (price - self.position[instid][dirstr]['poscost'])
         else:
@@ -745,7 +746,7 @@ class qeContextBase(object):
         volMult = self.instsett[instid]['volmult']
         poscost = self.position[instid][dirstr]['poscost'] if isToday else max(presett,self.presett.get(instid, 0))
         if self.recmode:
-           logger.info(f'closeProf: {volMult}, {self.position[instid]}, {dirstr},{price}, {vol}, {poscost} {self.stratName}')
+           self.logger.info(f'closeProf: {volMult}, {self.position[instid]}, {dirstr},{price}, {vol}, {poscost} {self.stratName}')
         if dirstr == 'long':
             return volMult * vol * (price - poscost)
         else:
@@ -899,7 +900,7 @@ class qeContextBase(object):
                                                 'current': self.getCurrent(tradeinstid),
                                                 'posProf': self.posProf, 'closeProf': self.closeProf}
             else:
-                logger.error('Invalid action in context.simTrade')
+                self.logger.error('Invalid action in context.simTrade')
                 return
             # self.stat.totalfees += fees
             turnover = tradeprice * tradevol * self.instsett[tradeinstid]['volmult']
@@ -917,6 +918,6 @@ class qeContextBase(object):
             self.curpnl = closeProf - fees
 
         except Exception as e:
-            logger.error(f"context simuTrade {e}",exc_info=True)
+            self.logger.error(f"context simuTrade {e}",exc_info=True)
 
 

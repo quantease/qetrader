@@ -13,7 +13,7 @@ from .qeglobal import  g_dataSlide
 from .qeredisdb import saveMarketToDB, resetMarketData
 from .qestatistics import getPrevTradingDay
 #from .qeinterface import simuqueue
-from .qelogger import logger
+#from .qelogger import logger
 
 import copy
 
@@ -79,7 +79,7 @@ def save_tick_data(tickdata):
             timedigit = tickdata[inst]['timedigit']
             saveMarketToDB(inst, str(timedigit), datastr)
 
-def update_data(strats, data):    
+def update_data(strats, data,logger):    
     try:
         assert 'type' in data and 'data' in data, 'incorrect data format'
         assert data['type'] == qetype.KEY_NEW_MARKET_DATA, 'incorrect data type'
@@ -98,7 +98,8 @@ def update_data(strats, data):
         
 
     except Exception as e:
-        logger.error(f"CTP market interface callback error {e}",exc_info=True )      
+        if logger:
+            logger.error(f"CTP market interface callback error {e}",exc_info=True )      
 
 
 def resetOldMarketData(instIDs, now):
@@ -107,7 +108,7 @@ def resetOldMarketData(instIDs, now):
         resetMarketData(inst, before_time)
 
 
-def runMarketInterface(strats, runmode,  data_slides, instIDs, tqueue,mode_724=False):
+def runMarketInterface(strats, runmode,  data_slides, instIDs, tqueue,mode_724=False,logger=None):
     ### 1. 接受行情服务消息 updateData
     ### 2. 接受策略服务消息 updateInstIDs
     ### 3. 接受交易服务消息 updateInstIDs
@@ -151,7 +152,7 @@ def runMarketInterface(strats, runmode,  data_slides, instIDs, tqueue,mode_724=F
             
             g_dataSlide.updateEx(data_slides.copy())
             d['data'] = g_dataSlide.copy()
-            update_data(strats, d)
+            update_data(strats, d, logger)
             if runmode == 'simu':
                 tqueue.put(d)
             if instSave and last_save_timedigit <= data_slides['lastdigit']-500:

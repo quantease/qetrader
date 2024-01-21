@@ -128,12 +128,12 @@ def processFunc(processInfo):
                 runStockMarketProcess(curuser,'888888',processInfo['strats'],processInfo['runmode'])
                 logger.info("add stock Market") 
         elif processInfo['type'] == 'marketin':
-            runMarketInterface(processInfo['strats'], processInfo['runmode'], processInfo['dataslides'], processInfo['instids'], processInfo['tqueue'],processInfo['mode_724'])
+            runMarketInterface(processInfo['strats'], processInfo['runmode'], processInfo['dataslides'], processInfo['instids'], processInfo['tqueue'],processInfo['mode_724'],processInfo['logger'])
             logger.info("add market interface")
         elif processInfo['type'] == 'trader':
             logger.info("add simulation Trader")
             # balance=processInfo['balance']
-            runQETraderProcess(curuser, processInfo['token'],processInfo['strats'] ,processInfo['tqueue'], processInfo['mode_724'])
+            runQETraderProcess(curuser, processInfo['token'],processInfo['strats'] ,processInfo['tqueue'], processInfo['mode_724'],processInfo['logger'])
             #tdqueue_ready = True
         #             runQETraderProcess(curuser, '888888',None)
         elif processInfo['type'] == 'realtrader' :
@@ -150,7 +150,7 @@ def processFunc(processInfo):
             #rocessInfo['data'].user = curuser
             processInfo['data'].stratProcess(processInfo['strat'],processInfo['tqueue'],processInfo['logger'])
         elif processInfo['type'] == 'bar':
-            udpClient_bar(processInfo['api'])
+            udpClient_bar(processInfo['api'],processInfo['logger'])
     except Exception as e:
         logger.error("qemain_pf: " + str(e), exc_info=True)
 
@@ -433,7 +433,7 @@ def startSimuProcess(user, token, strats, feesmult=1.0, ignorepass=True, mode_72
     m_Lock = Lock()
 
     process_list = []
-    process_list.append(Process(target=runProcessPool, args=(processlist, m_data_slides, m_instIDs)))
+    process_list.append(Process(target=runProcessPool, args=(processlist, m_data_slides, m_instIDs,'simu', curuser,printlog)))
     for mp in m_processlist:
         process_list.append(Process(target=runMarketProcess, args=(mp, m_data_slides, m_instIDs, m_Lock)))
     for process in process_list:

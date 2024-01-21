@@ -19,7 +19,7 @@ from .qeredisdb import saveHedgeMarketToDB
 from .qeredisdb import saveTradingDay
 from .qeredisdb import loadSettingData, loadSettingDatareal, saveSettingDataToDB, saveSettingDatarealToDB
 #from .qeredisdb import saveStrategyfreqToDB,saveStrategyfreqrealToDB
-from .qelogger import logger
+#from .qelogger import logger
 from threading import Timer
 #from .qectpmarket import checkMarketTime
 #from .qecontext import transInstID2Real,transInstID2Context
@@ -159,7 +159,7 @@ class qeStratProcess:
         print(u"策略进程启动成功；"+str(strat.name))
         self.logger.info(u"策略进程启动成功；"+str(strat.name))
         self.logger.info("strat user "+str(self.user))
-        context = qeContextBase(self.instid)
+        context = qeContextBase(self.instid,logger)
         #g_userinfo = globalInfo()  
         #print(g_userinfo.info_time,'#')
         #print(1)

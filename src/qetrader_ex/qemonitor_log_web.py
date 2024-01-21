@@ -22,9 +22,9 @@ def get_qemonitor_log(user,password,mode):
 #     current_line = 0    
     log_path = getLoggerPath()
     if mode == 'real':  
-        filename = f'{log_path}/qelog_real_{user}'           
+        filename = f'{log_path}/qelogex_real_{user}'           
     elif mode == 'simu':
-        filename = f'{log_path}/qelog_{user}'
+        filename = f'{log_path}/qelogex_{user}'
     if platform.system().lower() == 'windows':
         filename = filename.replace('/','\\')
     #print(filename)

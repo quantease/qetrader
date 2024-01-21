@@ -364,7 +364,7 @@ class qeCtpTrader(object):
             if d['from'] == 'RtnOrder':
                 self.callback(d)
                 self.account.saveOrders()
-#             self.account.saveToDB()
+#             self.account.saveToDB(self.logger)
         else:
             logger.info('rspOrder orderid is not found '+str(d['orderid']))
         return
@@ -409,7 +409,7 @@ class qeCtpTrader(object):
             saveTradeDatarealToDB(self.account.user, self.account.token, self.account.tradingDay, trade )
             if d['from'] == 'RtnTrade':
                 self.callback(d)
-                self.account.saveToDB()
+                self.account.saveToDB(self.logger)
                 dirstr = 'long' if d['dir']>0 else 'short'
                 self.account.updateWinLossParas(dirstr,  d['tradeprice'], d['tradevol'], d['closetype'], order['instid'])
 
@@ -471,7 +471,7 @@ class qeCtpTrader(object):
             self.tradespi.lasttime = d['data']['timedigit']
         elif abs(d['data']['timedigit'] - self.tradespi.lasttime) > 2500:
             self.tradespi.lasttime = d['data']['timedigit']
-            self.account.saveToDB()
+            self.account.saveToDB(self.logger)
         return
     def crossday(self):
         #self.tradespi.g_order_id = int(datetime.now().strftime('%H%M%S'))*100000
@@ -498,7 +498,7 @@ class qeCtpTrader(object):
         
         if not self.accload:
             self.accload = True
-            self.account.saveToDB()
+            self.account.saveToDB(self.logger)
             print('ctp账户资金信息加载完毕',self.account.balance)
             self.account.setLoadReady()
         
@@ -511,7 +511,7 @@ class qeCtpTrader(object):
         self.account.turnover += float(d['turnover'])
         if not self.posload:
             self.posload = True
-            self.account.saveToDB()
+            self.account.saveToDB(self.logger)
             setPositionLoaded()
             print('ctp账户持仓信息加载完毕')
             logger.info('ctp账户持仓信息加载完毕')

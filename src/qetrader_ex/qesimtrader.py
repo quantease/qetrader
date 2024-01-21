@@ -12,7 +12,7 @@ from qesdk import is_valid_trade_time
 from .qeredisdb import getDBPositionData,getDBOrderData,getDBTradeData,saveTradeDataToDB,saveOrderDataToDB
 from .qeredisdb import saveNewAccountToDB, loadSimuAccounts,removeDBSimuAccounts,getDBAccountData
 from .qeredisdb import getSimuInitCap,updateInitCap,saveAccountDataToDB,savePositionDataToDB
-from .qelogger import logger
+#from .qelogger import logger
 from .qestatistics import g_stat
 from .qeglobal import instSetts
 from .qeriskctl import riskControl
@@ -83,7 +83,7 @@ class accountInfo():
         
    
     def crossday(self):
-        logger.info('simuaccount.crossday')
+        self.logger.info('simuaccount.crossday')
         self.dayfees = 0
         self.daypnl = 0
         self.trades = {}
@@ -247,10 +247,10 @@ class accountInfo():
             if bal is None or math.isnan(float(bal)):
                 updateInitCap(self.user, self.balance)
             else:
-#                 logger.info(f'load balance:{self.balance}')
+#                 self.logger.info(f'load balance:{self.balance}')
                 self.balance = float(bal)
         except Exception as e:
-            logger.error(f"account.readAndSetDB error {e}",exc_info=True ) 
+            self.logger.error(f"account.readAndSetDB error {e}",exc_info=True ) 
           
     
     def saveToDB(self):
@@ -283,7 +283,7 @@ class accountInfo():
         g_stat.updateData(self.balance, self.daypnl, self.dayfees, self.margin, self.turnover, self.tradingDay,\
                           self.winamount, self.lossamount, self.wincount, self.losscount,self.maxmarg)
         #updateInitCap(self.user, self.balance)
-        #logger.info(f'saveToDB {self.balance}')
+        #self.logger.info(f'saveToDB {self.balance}')
     
     def getPosition(self, instid, dirstr,feild='volume'):
          if instid in self.position:
@@ -336,7 +336,7 @@ class accountInfo():
             leftvol = pos - pend
             if vol > leftvol:
                 print(f'Position is not enough: vol{vol}, pos {pos}, pend {pend}, left {leftvol}')
-                logger.warning(f'Position is not enough: vol{vol},  pos {pos}, pend {pend}, left {leftvol}')
+                self.logger.warning(f'Position is not enough: vol{vol},  pos {pos}, pend {pend}, left {leftvol}')
                 return -2
             #else:
             #    if not instid in self.frozenVol:
@@ -451,7 +451,7 @@ class accountInfo():
             self.updateCapital(closeProf, fee)
             self.saveToDB()
         except Exception as e:
-            logger.error(f"account.onTrade error {e}",exc_info=True ) 
+            self.logger.error(f"account.onTrade error {e}",exc_info=True ) 
     
         
     def autoAction(self, instid, blong, vol):
@@ -645,12 +645,12 @@ class QEsimtrader(object):
         timer = Timer(self.Timer_interval,self.callTimer)
         d = {}
         d['type'] = qetype.KEY_TIMER_SIMU
-#         logger.info('timer '+str(datetime.now()))
+#         self.logger.info('timer '+str(datetime.now()))
         
         if self.tqueue:
             self.tqueue.put(d)
         else:
-            logger.info('Timer is pending')
+            self.logger.info('Timer is pending')
         timer.start()
         return
     def heartBeat(self,realTrade):
@@ -672,7 +672,7 @@ class QEsimtrader(object):
         acc = getDBAccountData(self.user, self.token)
         simuaccount.user = self.user
         simuaccount.token = self.token
-        logger.info(f'simuaccount.loadFromDB {tradingDay}')
+        self.logger.info(f'simuaccount.loadFromDB {tradingDay}')
         if acc:
             d = json.loads(acc)
             simuaccount.posProf = float(d['posProf'])
@@ -697,14 +697,14 @@ class QEsimtrader(object):
                 simuaccount.crossday()
             simuaccount.tradingDay = tradingDay
         else:
-            logger.warn(f"读取模拟账户数据失败, user:{self.user},token:{self.token}.")
+            self.logger.warn(f"读取模拟账户数据失败, user:{self.user},token:{self.token}.")
         
         if simuaccount.loadPosition:     
             pos = getDBPositionData(self.user, self.token)
             if pos:
                 simuaccount.position = json.loads(pos)
         #else:
-        #    logger.warn(f"读取模拟账户持仓数据失败, user:{self.user},token:{self.token}.")
+        #    self.logger.warn(f"读取模拟账户持仓数据失败, user:{self.user},token:{self.token}.")
         
         orders = getDBOrderData(self.user, self.token, tradingDay)
         for oid in orders:
@@ -779,7 +779,7 @@ class QEsimtrader(object):
     
     
     def simTraderProcess(self):      
-        logger.info(u"模拟器启动")
+        self.logger.info(u"模拟器启动")
         print(u"模拟器启动")
         #simuaccount.feesmult = feesMult
         
@@ -799,7 +799,7 @@ class QEsimtrader(object):
                         self.process(d)
                         
                     except Exception as e:
-                        logger.error(f"simtrader tqueue error {e}",exc_info=True ) 
+                        self.logger.error(f"simtrader tqueue error {e}",exc_info=True ) 
                           
                 time.sleep(0.001)
             
@@ -821,7 +821,7 @@ class QEsimtrader(object):
             self.update(d['data'][0],d['instid'])    
         elif d['type'] == qetype.KEY_TIMER_SIMU:
             #orderlen = len(simuaccount.orders)
-            #logger.debug(f'simtrader.onTimer {orderlen}')
+            #self.logger.debug(f'simtrader.onTimer {orderlen}')
             simuaccount.updateCapital(0,0)
             simuaccount.saveToDB()
             
@@ -837,11 +837,11 @@ class QEsimtrader(object):
 	            if stratSett:
 	                stratSett['queue'].put(d)
 	            elif d['stratName'] != 'force_close':
-	                logger.error('callback '+str(d['stratName'])+' is not found')
+	                self.logger.error('callback '+str(d['stratName'])+' is not found')
 
     def crossday(self,d):
         #self.g_order_id = self.g_benchmark
-        logger.info('simTrader.crossday')
+        self.logger.info('simTrader.crossday')
         self.instVolume = {}
         self.mapTable = {}     
         #self.g_order_id = int('3'+datetime.now().strftime('%Y%m%d')[2:])*100000
@@ -883,7 +883,7 @@ class QEsimtrader(object):
                 simuaccount.saveToDB()
             
         except Exception as e:
-            logger.error(f"update error {e}",exc_info=True )         
+            self.logger.error(f"update error {e}",exc_info=True )         
         
     def update(self,d,instid):
         global g_dataSlide
@@ -921,7 +921,7 @@ class QEsimtrader(object):
                 simuaccount.saveToDB()
             
         except Exception as e:
-            logger.error(f"update error {e}",exc_info=True ) 
+            self.logger.error(f"update error {e}",exc_info=True ) 
     
     def sendOrder(self,order):
         global g_dataSlide
@@ -932,7 +932,7 @@ class QEsimtrader(object):
             #    order['leftvol'] = 0
             #    order['errorid'] = 1
             #    order['errormsg'] =  'Not trade time.'
-            #    #logger.warning(f'Warning: not trade time: {g_dataSlide[order['instid']]['timedigit']} ')                                   
+            #    #self.logger.warning(f'Warning: not trade time: {g_dataSlide[order['instid']]['timedigit']} ')                                   
             destprice = order['price'] if order['ordertype'] == 'limit' else g_dataSlide[order['instid']]['current']
             res = simuaccount.makeOrder(order['action'],order['direction'], destprice , order['volume'], order['instid'])
             
@@ -943,16 +943,16 @@ class QEsimtrader(object):
                 order['errorid'] = abs(res)
                 if res == -1:
                     order['errormsg'] =  '资金不足' 
-                    logger.warning(f'Warning: 资金不足。剩余可用权益: {simuaccount.avail} ') 
+                    self.logger.warning(f'Warning: 资金不足。剩余可用权益: {simuaccount.avail} ') 
                 else:
                     order['errormsg'] =  "可平持仓不足"
                     instid = order['instid']
                     longpos = simuaccount.getPosition(instid,'long')
                     shortpos = simuaccount.getPosition(instid,'short')
-                    logger.warning(f'Warning: 可平持仓不足。目前多仓 {longpos}, 空仓 {shortpos}') 
+                    self.logger.warning(f'Warning: 可平持仓不足。目前多仓 {longpos}, 空仓 {shortpos}') 
                     
 #             else:
-#                 logger.debug("pass account makeorder")
+#                 self.logger.debug("pass account makeorder")
 
             #simuaccount.g_order_id += 1
             #self.mapTable[simuaccount.g_order_id] = order['incoming_orderid']
@@ -972,7 +972,7 @@ class QEsimtrader(object):
 
             #self.matchTrade(instid)
         except Exception as e:
-            logger.error(f"sendorder error {e}",exc_info=True ) 
+            self.logger.error(f"sendorder error {e}",exc_info=True ) 
 
             
     def cancelOrder(self,d):
@@ -1003,14 +1003,14 @@ class QEsimtrader(object):
                             self.rtnOrder(order)
                             simuaccount.cancelOrder( order['volume'], order['direction'], order['instid'],order['action'])
                         else:
-                            logger.error('cancel order failed')
+                            self.logger.error('cancel order failed')
 
                 else:
-                        logger.error('cancel order is not found')
+                        self.logger.error('cancel order is not found')
 
  
         except Exception as e:
-            logger.error(f"cancelorder error {e}",exc_info=True ) 
+            self.logger.error(f"cancelorder error {e}",exc_info=True ) 
 
     def rtnOrder(self,order):
         #global g_orders,g_order_id,mapTable
@@ -1043,7 +1043,7 @@ class QEsimtrader(object):
             
             self.callback(d)
         else:
-            logger.error('rsp order id is not found')
+            self.logger.error('rsp order id is not found')
 
     def rtnTrade(self,trade):
         #global g_orders
@@ -1073,7 +1073,7 @@ class QEsimtrader(object):
         elif isinstance(instid, list):
             instids = instid
         else:
-            logger.error(f'matchTrade instid error {instid}')
+            self.logger.error(f'matchTrade instid error {instid}')
             return         
         #print("matchTrade", self.g_order_id,self.g_benchmark)
         #return
@@ -1090,13 +1090,13 @@ class QEsimtrader(object):
                             #print("check again:",order['status'], instid, order['leftvol'], order['volume'], order['direction'], order['action'])
                             if not self.mode_724 and not is_valid_trade_time(instid,self.curtime):
                                 print("MatchTrade failed on invalid data time",self.curtime, instid)
-                                logger.info(f"MatchTrade failed on invalid data time:{self.curtime}, intid:{instid}")
+                                self.logger.info(f"MatchTrade failed on invalid data time:{self.curtime}, intid:{instid}")
                                 continue
                             if g_dataSlide.get(instid, None) is None:
-                                logger.info(f"MatchTrade failed on g_dataslide have no data on such {instid}" )
+                                self.logger.info(f"MatchTrade failed on g_dataslide have no data on such {instid}" )
                                 continue
                             if not instid[-3:] in ['SSE','SZE'] and g_dataSlide[instid].get('presett',0) == 0:
-                                logger.info(f"MatchTrade failed on presettle price is zero on such {instid}" )
+                                self.logger.info(f"MatchTrade failed on presettle price is zero on such {instid}" )
                                 continue
                                 
                             stratName = order['stratName']
@@ -1139,15 +1139,15 @@ class QEsimtrader(object):
                                 curvol = 0
                             
                             curvol = max(curvol, opvol)    
-    #                         logger.debug('curvol location '+str(curvol)+';')
+    #                         self.logger.debug('curvol location '+str(curvol)+';')
                             
     #                         if debug_flag:
-    #                             logger.debug('tick a='+str(tick['a1_p'])+', b='+str(tick['b1_p']))
-    #                             logger.debug('order left '+str(order['leftvol'])+' type '+str(order['ordertype'])+' type '+str(order['direction']))
+    #                             self.logger.debug('tick a='+str(tick['a1_p'])+', b='+str(tick['b1_p']))
+    #                             self.logger.debug('order left '+str(order['leftvol'])+' type '+str(order['ordertype'])+' type '+str(order['direction']))
                                     
                             if order['ordertype'] == 'market':
     #                             if debug_flag:
-    #                                 logger.debug('going to market')
+    #                                 self.logger.debug('going to market')
                                 if order['direction'] > 0:
                                     
                                     #tradeprice = tick['current'] if tick['current'] >= tick['a1_p'] else tick['a1_p']
@@ -1163,10 +1163,10 @@ class QEsimtrader(object):
                                 #tradevol = max(int(curvol * traderate), 1)       
                                 tradevol = order['leftvol']
                                 #tradevol = order['leftvol']  if order['leftvol']  < tradevol else tradevol
-    #                             logger.debug('tradevol '+str(tradevol)+';')
+    #                             self.logger.debug('tradevol '+str(tradevol)+';')
                             elif order['ordertype'] == 'limit':
     #                             if debug_flag:
-    #                                 logger.debug('going to limit')
+    #                                 self.logger.debug('going to limit')
                                 tradeprice = order['price']
                                 if (order['direction'] > 0 and tick['current'] > order['price'] ) or(order['direction'] < 0 and tick['current'] < order['price'] ):
                                     tradevol = 0
@@ -1201,11 +1201,11 @@ class QEsimtrader(object):
                                 ##add closeYesterday codes
                                 #if order['action'] == 'auto':
                                 #    order['action'], tradevol = simuaccount.autoAction(instid, order['direction']>0, tradevol)
-    #                             logger.debug('autoaction tradevol '+str(tradevol))
+    #                             self.logger.debug('autoaction tradevol '+str(tradevol))
                                 closetype = order['closetype']
                                 if order['action'] == 'close':
                                     tradevol, closetype = simuaccount.checkCloseToday(instid, order['direction']<0, closetype, tradevol)
-    #                                 logger.debug('checkclosetoday tradevol '+str(tradevol))
+    #                                 self.logger.debug('checkclosetoday tradevol '+str(tradevol))
                                     if tradevol == 0:
                                         if order['timecond'] == 'FAK' or order['timecond'] == 'FOK':
                                             order['status'] = qetype.KEY_STATUS_CANCEL
@@ -1218,8 +1218,8 @@ class QEsimtrader(object):
     #                                         print(simuaccount.position[instid]['long'])
     #                                     except Exception as e:
     #                                         print("print account position ",e.__traceback__.tb_lineno, e ) 
-    #                                     logger.debug('hit')
-                                        #logger.warning(f'matchTrade invalid closetype {closetype}')
+    #                                     self.logger.debug('hit')
+                                        #self.logger.warning(f'matchTrade invalid closetype {closetype}')
                                         continue
                                 blong = order['direction']>0 if order['action']=='open' else order['direction']<0   
                                 simuaccount.onTrade(instid, order['action'], blong, tradeprice, tradevol, closetype,feesmult)
@@ -1253,7 +1253,7 @@ class QEsimtrader(object):
                                 trade['action'] = order['action']
                                 trade['dir'] = order['direction'] 
                                 trade['closetype'] = closetype
-                                logger.info(f"OnTrade:instid {instid},orderid {trade['orderid']},price {trade['tradeprice']},\
+                                self.logger.info(f"OnTrade:instid {instid},orderid {trade['orderid']},price {trade['tradeprice']},\
                                             vol {trade['tradevol']}, action {trade['action']},dir {trade['dir']}, closetype {trade['closetype']}")
                                 trade['accid'] = 0
                                 saveTradeDataToDB(self.user, self.token, simuaccount.tradingDay, trade )
@@ -1278,7 +1278,7 @@ class QEsimtrader(object):
                                 self.rtnTrade(trade)
 
             except Exception as e:
-                logger.error(f"matchTrade {e}",exc_info=True ) 
+                self.logger.error(f"matchTrade {e}",exc_info=True ) 
                         
                 
         
@@ -1290,9 +1290,11 @@ class QEsimtrader(object):
 
         
         
-def runQETraderProcess(user, token, strats,traderqueue, mode_724):
-    logger.info('start trader process')
+def runQETraderProcess(user, token, strats,traderqueue, mode_724,logger):
+    #self.logger.info('start trader process')
     qesimtrader = QEsimtrader()
+    qesimtrader.logger = logger
+    simuaccount.logger = logger
     #simuaccount.balance=balance
     #print('balance',self.balance)
     qesimtrader.user = user

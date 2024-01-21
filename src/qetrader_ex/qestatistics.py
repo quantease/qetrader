@@ -9,7 +9,7 @@ import threading
 import numpy as np
 from datetime import datetime, timedelta
 from .qeredisdb import saveStatDataToDB, saveStatDataToDBReal, loadDBStatData, loadDBStatDataReal
-from .qelogger import logger
+#from .qelogger import logger
 from .qeredisdb import loadDBStatCurrent, loadDBStatCurrentReal, saveStatCurrentToDB, saveStatCurrentToDBReal
 from .qeglobal import setTradingDaySaved
 
@@ -97,7 +97,7 @@ class globalStatistics():
         
     def init(self, balance, tradingday, accid = 0):
         accnum = self.accnum
-        logger.info("Statistics initialized")
+        print("Statistics initialized")
         if accnum == 1:
             self.startbal = balance
             self.balance = balance
@@ -207,7 +207,7 @@ class globalStatistics():
         
     
     def crossday(self, tradingday):
-        logger.info("Statistics crossday")
+        print("Statistics crossday")
         tday = int(self.tradingday)
         self.g_order_id = int('3'+datetime.now().strftime('%d%H%M'))*10000
         #self.accret += self.ret

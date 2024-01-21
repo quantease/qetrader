@@ -556,7 +556,7 @@ def saveHedgePointrealToDB(userid, stratName, time, d):
 
 
 @check_myredis
-def savePositionDatarealToDB(userid, investor, d, day):
+def savePositionDatarealToDB(userid, investor, d, day,mylogger):
     # parameter 2
     try:
 
@@ -565,7 +565,7 @@ def savePositionDatarealToDB(userid, investor, d, day):
             myredis.hset('sysgen_realDB2_position_'+str(userid)+'_'+investor, str(day), datastr)
         #                 print('sysgen_test18_position_'+str(userid)+'_'+str(stratName))
     except Exception as e:
-        logger.error(f"Failed on position writeDB: {e}", exc_info=True)
+        mylogger.error(f"Failed on position writeDB: {e}", exc_info=True)
 
 @check_myredis
 def saveStrategyContextrealToDB(userid, stratName, day, context):
@@ -599,7 +599,7 @@ def saveStrategyContextrealToDB(userid, stratName, day, context):
         myredis.hset('sysgen_realDB3_context_'+ str(userid), str(day) + '-' + str(stratName), datastr)
     #         print('sysgen_test18_context_'+str(userid)+'_'+str(stratName))
     except Exception as e:
-        logger.error(f"Failed on context writeDB: {e}", exc_info=True)
+        context.logger.error(f"Failed on context writeDB: {e}", exc_info=True)
 
 @check_myredis
 def saveAccountDatarealToDB(userid, investor, day, d):

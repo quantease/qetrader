@@ -245,7 +245,7 @@ class realAccountInfo:
 #         except Exception as e:
 #             logger.error(f"account.readAndSetDB error {e}",exc_info=True ) 
 #         return
-    def saveToDB(self):
+    def saveToDB(self,mylogger):
         d = {}
         d['posProf'] = str(round(self.posProf,3))
         d['frozenMarg'] = str(round(self.frozenMarg,3))
@@ -266,7 +266,7 @@ class realAccountInfo:
        
         #print("Account save to DB")
         saveAccountDatarealToDB(self.user, self.investorid, self.tradingDay, d)
-        savePositionDatarealToDB(self.user, self.investorid, self.position, self.tradingDay)
+        savePositionDatarealToDB(self.user, self.investorid, self.position, self.tradingDay,mylogger)
         g_stat.updateData(self.balance, self.daypnl, self.dayfees, self.margin, self.turnover, self.tradingDay,\
                           self.winamount, self.lossamount, self.wincount, self.losscount,self.maxmarg,\
                           accid=self.accid, withdraw=self.withdraw, deposit=self.deposit)
