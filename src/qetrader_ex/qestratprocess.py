@@ -153,11 +153,12 @@ class qeStratProcess:
                 
         return False
     
-    def stratProcess(self, strat, tqueue):
+    def stratProcess(self, strat, tqueue,logger):
         global info_time
+        self.logger = logger
         print(u"策略进程启动成功；"+str(strat.name))
-        logger.info(u"策略进程启动成功；"+str(strat.name))
-        logger.info("strat user "+str(self.user))
+        self.logger.info(u"策略进程启动成功；"+str(strat.name))
+        self.logger.info("strat user "+str(self.user))
         context = qeContextBase(self.instid)
         #g_userinfo = globalInfo()  
         #print(g_userinfo.info_time,'#')
@@ -272,7 +273,7 @@ class qeStratProcess:
                                     context.instid = strat.instid
 #                                         self.trigger = False
                             except Exception as e:
-                                logger.error(f'Error on strat.handleData {e}',exc_info=True)
+                                self.logger.error(f'Error on strat.handleData {e}',exc_info=True)
                         elif d['type'] == qetype.KEY_ON_ORDER:
                             #print('on_Order')
                             #print('3',d)
@@ -301,7 +302,7 @@ class qeStratProcess:
                             print('stratprocess on order error')
                             self.handleOrder(d,context)
                         elif d['type'] == qetype.KEY_TIMER_PROCESS:
-                            #logger.info(f'strat minu report:{self.info_time}')
+                            #self.logger.info(f'strat minu report:{self.info_time}')
                             if self.evalmode and strat.datamode == 'minute':
                                 try:
                                     savedInsts = strat.instid.copy();
@@ -335,11 +336,11 @@ class qeStratProcess:
                                         self.changeInstIDs(context, savedInsts, strat.instid)
                                         context.instid = strat.instid
                                 except Exception as e:
-                                    logger.error(f'Error on strat.handleData {e}',exc_info=True)
+                                    self.logger.error(f'Error on strat.handleData {e}',exc_info=True)
 
                             context.bCrossDay = self.checkCrossDay()
                             if context.bCrossDay:
-                                logger.info(f'strat.crossDay {strat.name}')
+                                self.logger.info(f'strat.crossDay {strat.name}')
                                #self.saveTradingday = False
                                 savedInsts = strat.instid.copy();
                                 try:
@@ -349,7 +350,7 @@ class qeStratProcess:
                                     self.crossDay(context)
                                     strat.crossDay(context)
                                 except Exception as e:
-                                    logger.error(f'Error on strat.crossDay {e}',exc_info=True)
+                                    self.logger.error(f'Error on strat.crossDay {e}',exc_info=True)
                                 if isinstance(strat.instid, str):
                                     strat.instid = [strat.instid]
                                 if savedInsts !=  strat.instid:
@@ -357,7 +358,7 @@ class qeStratProcess:
                                     self.changeInstIDs(context, savedInsts, strat.instid)
                                     context.instid = strat.instid
                     except Exception as e:
-                        logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
+                        self.logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
                 time.sleep(0.001)
 
     def changeInstIDs(self, context, old, new):
@@ -392,12 +393,12 @@ class qeStratProcess:
         timer = Timer(self.Timer_interval,self.callTimer)
         d = {}
         d['type'] = qetype.KEY_TIMER_PROCESS
-#         logger.info('timer '+str(datetime.now()))
+#         self.logger.info('timer '+str(datetime.now()))
         
         if self.stratQueue:
             self.stratQueue.put(d)
         else:
-            logger.info('Timer is pending')
+            self.logger.info('Timer is pending')
         timer.start()
         return    
   
@@ -474,7 +475,7 @@ class qeStratProcess:
                         saveHedgeMarketToDB(self.user,self.name, self.instid_hedge, self.hedgemodel_time, hd)
                         self.hedgemodel_time = context.timedigit
         except Exception as e:
-            logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
+            self.logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
  
     def updateData(self,d,context):
         try:
@@ -497,7 +498,7 @@ class qeStratProcess:
            
                                        
         except Exception as e:
-            logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
+            self.logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
 
     def calculatemul(self,context):
         a = [0, 0, 0, 0, 0]
@@ -524,7 +525,7 @@ class qeStratProcess:
         #self.info_time_all = 0
         #self.info_time_new = 0
         self.daily_called = False
-        logger.info('Strat Process crossDay')        
+        self.logger.info('Strat Process crossDay')        
         if self.recmode:
             lastday = context.lastday.replace('-','')
             writeStratPosition_wrap(self.name, lastday,context.position,context.instClosePnl)
@@ -554,13 +555,13 @@ class qeStratProcess:
                 else:
                     self.current_timedigit = max(self.current_timedigit+5,(order['timedigit'])) # increment by 5 ms to identify time change
                 
-                # logger.debug(str(self.name)+'-'+str(order['timedigit']))
+                # self.logger.debug(str(self.name)+'-'+str(order['timedigit']))
                 '''
                 context.orders[order['orderid']] = corder
                 
                 
         except Exception as e:
-            logger.error(f"handleorder error {e}",exc_info=True)  
+            self.logger.error(f"handleorder error {e}",exc_info=True)  
 
 
     def handleTrade(self,trade,context):
@@ -574,7 +575,7 @@ class qeStratProcess:
                 writeStratTrade_wrap(self.name,context.tradingday, trade)
                 writeContract_messages_wrap(self.name,context.tradingday, trade)
         except Exception as e:
-            logger.error(f"handletrade error {e}",exc_info=True )
+            self.logger.error(f"handletrade error {e}",exc_info=True )
     
     
 if __name__ == '__main__':

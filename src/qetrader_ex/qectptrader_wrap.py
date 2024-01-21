@@ -7,7 +7,7 @@ from datetime import datetime,timedelta
 from .qetype import qetype
 from .qeredisdb import saveProcessToDB,saveTradeDatarealToDB,saveOrderDatarealToDB
 #from .qeaccount import self.account
-from .qelogger import logger
+#from .qelogger import logger
 #from .qeriskctl import ctpriskctl
 #from multiprocessing import Queue
 from .qemarket_interface import checkMarketTime
@@ -175,13 +175,13 @@ class qeCtpTrader(object):
         timer = Timer(Timer_interval,self.callTimer)
         d = {}
         d['type'] = qetype.KEY_TIMER
-#         logger.info('timer '+str(datetime.now()))
+#         self.logger.info('timer '+str(datetime.now()))
         if self.tqueue:
             self.tqueue.put(d)
             #self.heartBeat(True)
             #self.getStatistic()
         else:
-            logger.info('Timer is pending')
+            self.logger.info('Timer is pending')
         timer.start()
         return
     def heartBeat(self,realTrade):
@@ -199,10 +199,10 @@ class qeCtpTrader(object):
          
     def TraderProcess(self):   
         #global tqueue
-        logger.info(u"start Trader") 
+        self.logger.info(u"start Trader") 
         print("start Trader")
         if self.tqueue:
-            logger.info('tqueue is ready')
+            self.logger.info('tqueue is ready')
             print('tqueue is ready')
             while True:
                 try:
@@ -213,7 +213,7 @@ class qeCtpTrader(object):
                         self.process(d)
                     time.sleep(0.001)
                 except Exception as e:
-                    logger.error(f"ctptrader tqueue error {e}",exc_info=True )            
+                    self.logger.error(f"ctptrader tqueue error {e}",exc_info=True )            
         return
     def process(self,d):
         #print(d['type'],self.tradespi.frontConnected)
@@ -251,7 +251,7 @@ class qeCtpTrader(object):
         elif d['type'] == qetype.KEY_USER_LOGOUT:
             self.tradespi.logout()
         else:
-            logger.error('incorrect type given as type is '+str(d['type']))
+            self.logger.error('incorrect type given as type is '+str(d['type']))
         
         self.protectTime = datetime.now()+timedelta(seconds=2)
         return
@@ -266,7 +266,7 @@ class qeCtpTrader(object):
                     print('callback',d['stratName'],d.get('leftvol',-1),d['type'])
                     stratQueue['queue'].put(d)
                 else:
-                    logger.error('callback '+str(d['stratName'])+' is not found')
+                    self.logger.error('callback '+str(d['stratName'])+' is not found')
         
     def sendOrder(self,d):
         #repeat = False
@@ -287,7 +287,7 @@ class qeCtpTrader(object):
 
                     tempinstid = self.account.position.get(d['instid'],'-1')
                     if tempinstid == '-1':
-                        logger.error('No position to close at '+str(d['instid']))
+                        self.logger.error('No position to close at '+str(d['instid']))
                         return
                     else:
                         
@@ -382,7 +382,7 @@ class qeCtpTrader(object):
                         #print('reqPosition')
 
         except Exception as e:
-            logger.error('getStatistic '+str(e))
+            self.logger.error('getStatistic '+str(e))
             print("getStatistic error: ",e)
 
         if self.accload and self.posload and self.tradesload and self.ordersload:
@@ -393,7 +393,7 @@ class qeCtpTrader(object):
             self.tradespi.authenticate()
         return
     def onOrder(self,d): 
-        logger.info(f'onOrder callback {d["orderid"]} {d["status"]} {d["tradevol"]} {d["volume"]} {d["leftvol"]} {d["cancelvol"]}')
+        self.logger.info(f'onOrder callback {d["orderid"]} {d["status"]} {d["tradevol"]} {d["volume"]} {d["leftvol"]} {d["cancelvol"]}')
         saveOrderDatarealToDB(self.account.user,self.account.token, self.account.tradingDay, d )
         if d['from'] == 'RtnOrder':
             #print('onOrder callback',d)
@@ -443,7 +443,7 @@ class qeCtpTrader(object):
 
             
 #         else:
-#             logger.info('rspTrade orderid is not found ')
+#             self.logger.info('rspTrade orderid is not found ')
 
     def onCancelConfirm(self,d):
         self.callback(d)
@@ -507,7 +507,7 @@ class qeCtpTrader(object):
             self.accload = True
             self.account.saveToDB()
             print(f'ctp账户资金信息加载完毕 {self.account.balance}')
-            logger.info(f'ctp账户资金信息加载完毕 {self.account.balance}')
+            self.logger.info(f'ctp账户资金信息加载完毕 {self.account.balance}')
             self.account.setLoadReady()
         
         
@@ -524,7 +524,7 @@ class qeCtpTrader(object):
             self.account.saveToDB()
             setPositionLoaded()
             print('ctp账户持仓信息加载完毕')
-            logger.info('ctp账户持仓信息加载完毕')
+            self.logger.info('ctp账户持仓信息加载完毕')
             #self.account.setLoadReady() ## wait for account info ready
 #         self.tradespi.position = self.account.position
 #         print(self.account.position)
@@ -617,12 +617,12 @@ class CTradeSpi(TraderApiWrapper):
         self.qryLock = False
         self.lastTDay = getPreviousTradingDay()
         self.locktimer = None
-        logger.info('traderspi is ready')
-    
+        
+        
 
     def lockTimer(self):
         self.qryLock = False
-        #logger.info("Unlock on timer expired")
+        #self.logger.info("Unlock on timer expired")
 
 
     def lockStart(self):
@@ -738,43 +738,43 @@ class CTradeSpi(TraderApiWrapper):
         self.ReqUserLogout(logoutfield, self.reqID)
     
     def reqTrade(self):
-        logger.info("Query trades...")
+        self.logger.info("Query trades...")
         tradefield = QryTradeField()
         tradefield.BrokerID = self.broker
         tradefield.InvestorID = self.investor
         ret = self.ReqQryTrade(tradefield, self.reqID)
         if ret != 0:
-            logger.warning('reqQryTrade error='+str(ret))
+            self.logger.warning('reqQryTrade error='+str(ret))
         else:
             self.qryLock = True
         
         
     def reqOrder(self):
-        logger.info("Query orders...")
+        self.logger.info("Query orders...")
         orderfield = QryOrderField()
         orderfield.BrokerID = self.broker
         orderfield.InvestorID = self.investor
         ret = self.ReqQryOrder(orderfield, self.reqID)
         if ret != 0:
-            logger.warning('reqQryOrder error='+str(ret))
+            self.logger.warning('reqQryOrder error='+str(ret))
         else:
             self.qryLock = True
          
     def reqInstrumentCommission(self, instid):
-        logger.info("Query commission...")
+        self.logger.info("Query commission...")
         commfield = QryInstrumentCommissionRateField ()
         commfield.BrokerID = self.broker
         commfield.InvestorID = self.investor
         commfield.InstrumentID = instid
         ret = self.ReqQryInstrumentCommissionRate(commfield, self.reqID)
         if ret != 0:
-            logger.warning('reqInstrumentCommission error='+str(ret))
+            self.logger.warning('reqInstrumentCommission error='+str(ret))
         else:
             self.lockStart()
 
     
     def authenticate(self):
-        logger.info("Authenticating...")
+        self.logger.info("Authenticating...")
         authfield = ReqAuthenticateField()
         authfield.BrokerID = self.broker
         authfield.UserID = self.investor
@@ -783,7 +783,7 @@ class CTradeSpi(TraderApiWrapper):
         self.ReqAuthenticate(authfield,self.reqID)
 
     def sendOrder(self,order):
-#         logger.info('trader sendorder')
+#         self.logger.info('trader sendorder')
         try:
             #self.account.g_order_id += 1
             #self.mapTable[self.account.g_order_id] = order['incoming_orderid']
@@ -798,7 +798,7 @@ class CTradeSpi(TraderApiWrapper):
                         order_price = tick['lowerlimit']
                 else:
                     #order_price = order['price']
-                    logger.error('没有tick数据无法下市价单')    
+                    self.logger.error('没有tick数据无法下市价单')    
                     return    
             else:
                 order_price = order['price']
@@ -866,15 +866,15 @@ class CTradeSpi(TraderApiWrapper):
             ret = self.ReqOrderInsert(orderfield,self.reqID)
             #print('sendorder',ret)
             if ret != 0:
-                logger.warning(f"ReqOrderInsert Failed:{ret}")
+                self.logger.warning(f"ReqOrderInsert Failed:{ret}")
                 self.account.orders[orderid]['errorid']= ret
             
         except Exception as e:
             print(e.__traceback__.tb_lineno,e)
-            logger.error(e)      
+            self.logger.error(e)      
         return
     def cancelOrder(self,d):
-#         logger.info('trader cancelorder')
+#         self.logger.info('trader cancelorder')
         try:
             order = self.account.orders.get(d['orderid'],None)
             if order:
@@ -904,15 +904,15 @@ class CTradeSpi(TraderApiWrapper):
                 #print('ctp cancelorder', order['sessionid'], order['frontid'],d['orderid'])
                 self.ReqOrderAction(orderfield,self.reqID)
             else:
-                logger.error('cancel order is not found')
+                self.logger.error('cancel order is not found')
         except Exception as e:
             print(e.__traceback__.tb_lineno,e)
-            logger.error(e)
+            self.logger.error(e)
         return
     def reqAccount(self):
         try:
             self.reqID += 1
-            #logger.info("reqAccount")
+            #self.logger.info("reqAccount")
             #print("reqAccount")
             reqfield=QryTradingAccountField(BizType='1')
             reqfield.InvestorID = self.investor
@@ -922,17 +922,17 @@ class CTradeSpi(TraderApiWrapper):
             # reqfield.AccountID = 3
             ret = self.ReqQryTradingAccount(reqfield,self.reqID)
             if ret != 0:
-                logger.warning('reqQryTradingAccount error='+str(ret))
+                self.logger.warning('reqQryTradingAccount error='+str(ret))
             else:
                 self.lockStart()
             return ret    
         except Exception as e:
             print( e.__traceback__.tb_lineno, e)
-            logger.error(e)
+            self.logger.error(e)
             return -10
     def reqPosition(self):
         try:
-            #logger.info("reqPosition")
+            #self.logger.info("reqPosition")
             #print("reqPosition")
             self.reqID += 1
             reqfield=QryInvestorPositionField()
@@ -940,12 +940,12 @@ class CTradeSpi(TraderApiWrapper):
             reqfield.BrokerID = self.broker
             ret = self.ReqQryInvestorPosition(reqfield,self.reqID)
             if ret != 0:
-                logger.warning('reqPosition error='+str(ret))
+                self.logger.warning('reqPosition error='+str(ret))
             else:
                 self.lockStart()
             return ret    
         except Exception as e:
-            logger.error(e)
+            self.logger.error(e)
             return -10 
         
     def OnFrontConnected(self) -> None:
@@ -963,13 +963,13 @@ class CTradeSpi(TraderApiWrapper):
         return
         
     def OnRspAuthenticate(self, pRspAuthenticateField, pRspInfo, nRequestID, bIsLast) -> None:
-#         logger.info("OnRspAuthenticate")
+#         self.logger.info("OnRspAuthenticate")
         if pRspInfo.ErrorID == 0:
-#             logger.info("BrokerID="+str(pRspAuthenticateField.BrokerID))
-            logger.info("UserID="+str(pRspAuthenticateField.UserID))
+#             self.logger.info("BrokerID="+str(pRspAuthenticateField.BrokerID))
+            self.logger.info("UserID="+str(pRspAuthenticateField.UserID))
             print("UserID="+str(pRspAuthenticateField.UserID))
-#             logger.info("AppID="+str(pRspAuthenticateField.AppID))
-#             logger.info("AppType="+str(pRspAuthenticateField.AppType))
+#             self.logger.info("AppID="+str(pRspAuthenticateField.AppID))
+#             self.logger.info("AppType="+str(pRspAuthenticateField.AppType))
             self.reqID +=1
             loginfield = ReqUserLoginField()
             loginfield.BrokerID=self.broker
@@ -979,14 +979,14 @@ class CTradeSpi(TraderApiWrapper):
             self.ReqUserLogin(loginfield,self.reqID)
             print ("鉴权成功")
         else:
-            logger.error("Authenticate ErrorID="+str(pRspInfo.ErrorID))
-            logger.error("Authenticate ErrorMsg="+str(pRspInfo.ErrorMsg))
+            self.logger.error("Authenticate ErrorID="+str(pRspInfo.ErrorID))
+            self.logger.error("Authenticate ErrorMsg="+str(pRspInfo.ErrorMsg))
         return
     def OnRspUserLogin(self, pRspUserLogin, pRspInfo, nRequestID, bIsLast) -> None:
         # print("TradingDay=",pRspUserLogin.TradingDay)
         # print("SessionID=",pRspUserLogin.SessionID)   
         if pRspInfo.ErrorID == 0:
-            logger.info("交易服务器登录成功")
+            self.logger.info("交易服务器登录成功")
             print("交易服务器登录成功")
             self.frontID = pRspUserLogin.FrontID
             self.sessionID = pRspUserLogin.SessionID
@@ -1006,16 +1006,16 @@ class CTradeSpi(TraderApiWrapper):
                 #
 #             print("send ReqQrySettlementInfo ok")
         else:
-            logger.error(" UserLogin ErrorID="+str(pRspInfo.ErrorID))
-            logger.error(" UserLogin ErrorMsg="+str(pRspInfo.ErrorMsg))
+            self.logger.error(" UserLogin ErrorID="+str(pRspInfo.ErrorID))
+            self.logger.error(" UserLogin ErrorMsg="+str(pRspInfo.ErrorMsg))
         return
     def OnRspUserLogout(self, pUserLogout, pRspInfo, nRequestID, bIsLast) -> None:
         self.connectionStatus = False
-        logger.info("交易服务器已经登出")
+        self.logger.info("交易服务器已经登出")
         print("交易服务器已经登出")
         if pRspInfo.ErrorID != 0:
-            logger.error("UserLogout ErrorID="+str(pRspInfo.ErrorID))
-            logger.error("UserLogout ErrorMsg="+str(pRspInfo.ErrorMsg))
+            self.logger.error("UserLogout ErrorID="+str(pRspInfo.ErrorID))
+            self.logger.error("UserLogout ErrorMsg="+str(pRspInfo.ErrorMsg))
         return
         
     def OnRspQryOrder(self, pOrder, pRspInfo, nRequestID, bIsLast) -> None:
@@ -1090,7 +1090,7 @@ class CTradeSpi(TraderApiWrapper):
                 #self.reqTrade()
                 self.qryLock = False
         except Exception as e:
-            logger.error(f'OnRspQryOrder:{e}')      
+            self.logger.error(f'OnRspQryOrder:{e}')      
 
         
     def OnRspQryTrade(self, pTrade, pRspInfo, nRequestID, bIsLast) -> None:
@@ -1130,7 +1130,7 @@ class CTradeSpi(TraderApiWrapper):
                 print("ctp查询成交表完成")
                 self.qryLock = False
         except Exception as e:
-            logger.error(f'OnRspQryTrade:{e}')      
+            self.logger.error(f'OnRspQryTrade:{e}')      
         
     def OnRspQryInstrumentCommissionRate(self, pInstrumentCommissionRate, pRspInfo, nRequestID, bIsLast) -> None:
         pass
@@ -1153,18 +1153,18 @@ class CTradeSpi(TraderApiWrapper):
 #         print("send ReqSettlementInfoConfirm ok")
         return
     def OnRspSettlementInfoConfirm(self, pSettlementInfoConfirm, pRspInfo, nRequestID, bIsLast) -> None:
-#         logger.info("OnRspSettlementInfoConfirm")
+#         self.logger.info("OnRspSettlementInfoConfirm")
         #time.sleep(1)
         self.reqPosition()
         #self.connectionStatus = True
 
         if pRspInfo.ErrorID != 0:
-            logger.error("ErrorID="+str(pRspInfo.ErrorID))
-            logger.error("ErrorMsg="+str(pRspInfo.ErrorMsg))
+            self.logger.error("ErrorID="+str(pRspInfo.ErrorID))
+            self.logger.error("ErrorMsg="+str(pRspInfo.ErrorMsg))
         return
     def OnRtnOrder(self, pOrder) -> None:
         #global tqueue
-#         logger.info("OnRtnOrder")
+#         self.logger.info("OnRtnOrder")
         #print('onRtnOrder',pOrder)
         # print ("OrderStatus=",pOrder.OrderStatus)
         # print ("StatusMsg=",pOrder.StatusMsg)
@@ -1191,7 +1191,7 @@ class CTradeSpi(TraderApiWrapper):
         d['from'] = 'RtnOrder'
         
         if d['status_ctp'] == api.THOST_FTDC_OST_Canceled and d['submit_status'] == api.THOST_FTDC_OSS_InsertRejected:
-            logger.warning(f'OnRtnOrder canceled by exchange: {pOrder.InstrumentID}, {pOrder.OrderRef}, {pOrder.StatusMsg}') 
+            self.logger.warning(f'OnRtnOrder canceled by exchange: {pOrder.InstrumentID}, {pOrder.OrderRef}, {pOrder.StatusMsg}') 
             d['errormsg'] = pOrder.StatusMsg
             d['errorid'] = -9
         else:
@@ -1239,7 +1239,7 @@ class CTradeSpi(TraderApiWrapper):
         if nRequestID != self.reqID:
             return
         #global tqueue
-        logger.error("OnRspOrderInsert")
+        self.logger.error("OnRspOrderInsert")
         print ("ErrorID=",pRspInfo.ErrorID)
         # print ("ErrorMsg=",pRspInfo.ErrorMsg)
 
@@ -1292,13 +1292,13 @@ class CTradeSpi(TraderApiWrapper):
         d['time'] = datetime.now().strftime("%H:%M:%S")
         self.tqueue.put(d)
         if pRspInfo.ErrorID == 0:
-            logger.info(f"OnRspOrderInsert orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID},dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
+            self.logger.info(f"OnRspOrderInsert orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID},dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
         else:
-            logger.error(f"OnRspOrderInsert Error:{pRspInfo.ErrorID}, Msg:{pRspInfo.ErrorMsg}, orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID}, dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
+            self.logger.error(f"OnRspOrderInsert Error:{pRspInfo.ErrorID}, Msg:{pRspInfo.ErrorMsg}, orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID}, dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
         return
     def OnErrRtnOrderInsert(self, pInputOrder, pRspInfo) -> None:
         #global tqueue
-        logger.error("OnErrRtnOrderInsert")
+        self.logger.error("OnErrRtnOrderInsert")
         d = {}
         d['type'] = qetype.KEY_ON_ORDER_ERROR
 #         d['instid'] = pInputOrder.InstrumentID
@@ -1350,9 +1350,9 @@ class CTradeSpi(TraderApiWrapper):
 
         self.tqueue.put(d)
         if pRspInfo.ErrorID == 0:
-            logger.info(f"OnErrRtnOrderInsert orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID},dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
+            self.logger.info(f"OnErrRtnOrderInsert orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID},dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
         else:
-            logger.error(f"OnErrRtnOrderInsert Error:{pRspInfo.ErrorID}, Msg:{pRspInfo.ErrorMsg}, orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID}, dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
+            self.logger.error(f"OnErrRtnOrderInsert Error:{pRspInfo.ErrorID}, Msg:{pRspInfo.ErrorMsg}, orderref:{pInputOrder.OrderRef},instid:{pInputOrder.InstrumentID}, dir:{pInputOrder.Direction}, vol:{pInputOrder.VolumeTotalOriginal}")
         
     def OnErrRtnOrderAction(self, pOrderAction, pRspInfo) -> None:
         d = {}
@@ -1410,11 +1410,11 @@ class CTradeSpi(TraderApiWrapper):
 
         self.tqueue.put(d)
 #       print('CancelOrder failed ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
-        logger.error('CancelOrder failed orderID='+str(pOrderAction.OrderRef)+',ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
+        self.logger.error('CancelOrder failed orderID='+str(pOrderAction.OrderRef)+',ErrorID='+str(pRspInfo.ErrorID)+',ErrorMsg='+str(pRspInfo.ErrorMsg) )
         
     def OnRtnTrade(self, pTrade) -> None:
         #global tqueue
-#         logger.info("OnRtnTrade")
+#         self.logger.info("OnRtnTrade")
         d = {}
         d['type'] = qetype.KEY_ON_TRADE
 #         d['instid'] = pTrade.InstrumentID
@@ -1446,7 +1446,7 @@ class CTradeSpi(TraderApiWrapper):
             self.account.updatePosition(d['instid'], d['dir'], d['action'],d['tradeprice'], d['tradevol'], d['closetype'])
         self.tqueue.put(d)
         print(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
-        logger.info(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
+        self.logger.info(f"{d['action']} {d['dir']} succeed on  {d['instid']}, price: {d['tradeprice']}, vol: {d['tradevol']}, time: {d['tradetime']}, orderid: {d['orderid']}")
 
         return
 
@@ -1482,7 +1482,7 @@ class CTradeSpi(TraderApiWrapper):
                 #print('qry account done, qryLock = False')
                 
         except Exception as e:
-            logger.error(e)
+            self.logger.error(e)
         return
     def OnRspQryInvestorPosition(self, pInvestorPosition, pRspInfo, nRequestID, bIsLast) -> None:
         if nRequestID != self.reqID:
@@ -1545,15 +1545,15 @@ class CTradeSpi(TraderApiWrapper):
                 #self.connectionStatus = True
                 self.tqueue.put(d)
         except Exception as e:
-            logger.error(e)
+            self.logger.error(e)
         return
     def OnRspQryInvestorPositionDetail(self,pInvestorPositionDetail, RspInfo, nRequestID, bIsLast)  -> None:
         pass
     def OnRspQryInstrument(self,pInstrument,  RspInfo, nRequestID, bIsLast)  -> None:
         pass
     def OnRspError(self,pRspInfo, nRequestID, bIsLast)  -> None:
-        logger.error("ErrorID="+str(pRspInfo.ErrorID))
-        logger.error("ErrorMsg="+str(pRspInfo.ErrorMsg))
+        self.logger.error("ErrorID="+str(pRspInfo.ErrorID))
+        self.logger.error("ErrorMsg="+str(pRspInfo.ErrorMsg))
         return
     def RegisterNameServer(self, pszNsAddress: str) -> None:
         """
@@ -2561,7 +2561,7 @@ class CTradeSpi(TraderApiWrapper):
     # 投资者产品SPBM明细查询响应
     def OnRspQryInvestorProdSPBMDetail(self, pInvestorProdSPBMDetail, pRspInfo, nRequestID, bIsLast) -> None:
         pass
-def runQERealTraderProcess(user,account, classname,strats,traderqueue,user_setting,mode_724):
+def runQERealTraderProcess(user,account, classname,strats,traderqueue,user_setting,mode_724,logger):
     global g_mode_724 #, tradespi,FrontAddr, 
     # if os.path.exists('tduser.pid'):
     #     with open("tduser.pid",'r') as f:
@@ -2576,6 +2576,7 @@ def runQERealTraderProcess(user,account, classname,strats,traderqueue,user_setti
         #FrontAddr = "tcp://101.230.209.178:53313"
     '''以下是7*24小时环境'''   
     ctptrader = qeCtpTrader()
+    ctptrader.logger = logger
     ctptrader.tqueue = traderqueue
     ctptrader.strats = strats
     ctptrader.user = user
@@ -2601,6 +2602,7 @@ def runQERealTraderProcess(user,account, classname,strats,traderqueue,user_setti
     #setGlobals()
     #tradeapi=api.CThostFtdcTraderApi_CreateFtdcTraderApi()
     ctptrader.tradespi=CTradeSpi()
+    ctptrader.tradespi.logger = ctptrader.logger
     ctptrader.tradespi.Create("./")
     ctptrader.tradespi.classname = ctptrader.classname
     ctptrader.tradespi.tqueue = ctptrader.tqueue

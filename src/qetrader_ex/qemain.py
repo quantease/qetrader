@@ -15,6 +15,7 @@ from .qesimtrader import  runQETraderProcess #, getCurTradingDay
 from .qestratprocess import qeStratProcess
 from .qeasyncstrat import qeAsyncStratProcess
 from .qelogger import logger, initLogger
+from .qelogger_ex import createLogger
 #from .qeriskctl import soptriskctl, ctpriskctl
 from .qeinterface import qeStratBase
 from .qestatistics import g_stat
@@ -137,7 +138,7 @@ def processFunc(processInfo):
         #             runQETraderProcess(curuser, '888888',None)
         elif processInfo['type'] == 'realtrader' :
             if processInfo['name'].find('ctp')>=0:
-                runQERealTraderProcess(curuser,processInfo['account'], processInfo['class'], processInfo['strats'], processInfo['queue'] , processInfo['setting'], processInfo['mode_724'])
+                runQERealTraderProcess(curuser,processInfo['account'], processInfo['class'], processInfo['strats'], processInfo['queue'] , processInfo['setting'], processInfo['mode_724'],processInfo['logger'])
             elif processInfo['name'].find('sopt')>=0 and sopttd:
                 sopttd(curuser, processInfo['account'],processInfo['class'], processInfo['strats'], processInfo['queue'] , processInfo['setting'], processInfo['mode_724'])
             #tdqueue_ready = True
@@ -147,7 +148,7 @@ def processFunc(processInfo):
             #apiset = processInfo['data'].mduser
                 
             #rocessInfo['data'].user = curuser
-            processInfo['data'].stratProcess(processInfo['strat'],processInfo['tqueue'])
+            processInfo['data'].stratProcess(processInfo['strat'],processInfo['tqueue'],processInfo['logger'])
         elif processInfo['type'] == 'bar':
             udpClient_bar(processInfo['api'])
     except Exception as e:
@@ -749,7 +750,7 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
         for mp in m_processlist:
             
             process_list.append(Process(target=runMarketProcess, args=(mp, m_data_slides, m_instIDs, m_Lock)))
-        process_list.append(Process(target=runProcessPool, args=(processlist, m_data_slides, m_instIDs)))
+        process_list.append(Process(target=runProcessPool, args=(processlist, m_data_slides, m_instIDs,'real',curuser,printlog)))
         for process in process_list:
             process.start()
         for process in process_list:
@@ -759,11 +760,13 @@ def startRealProcess(user, strats, user_setting, feesmult=1.0, ignorepass=True, 
         logger.error("qemain_begin: " + str(e), exc_info=True)
 
 
-def runProcessPool(processlist, m_data_slides, m_instIDs):
+def runProcessPool(processlist, m_data_slides, m_instIDs,runmode, curuser,printlog=True):
+    mylogger = createLogger(curuser, True,printlog=printlog)
     for process in processlist:
         if process['type'] == 'marketin':
             process['dataslides'] = m_data_slides
             process['instids'] = m_instIDs
+        process['logger'] = mylogger
     with Pool(max(int(cpu_count()), 10)) as pool:
         results = pool.map(processFunc, processlist)
 
