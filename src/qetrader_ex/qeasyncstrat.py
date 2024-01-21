@@ -24,7 +24,7 @@ from .qeredisdb import saveHedgeMarketToDB
 from .qeredisdb import saveTradingDay
 from .qeredisdb import loadSettingData, loadSettingDatareal, saveSettingDataToDB, saveSettingDatarealToDB
 #from .qeredisdb import saveStrategyfreqToDB,saveStrategyfreqrealToDB
-from .qelogger import logger
+#from .qelogger import logger
 from threading import Timer
 #from .qectpmarket import checkMarketTime
 #from .qecontext import transInstID2Real,transInstID2Context
@@ -176,7 +176,7 @@ class qeAsyncStratProcess:
         #global loop
         start = datetime.now()
         try:
-            buffer_get_bar(list(self.instids), self.tradingday)
+            buffer_get_bar(list(self.instids), self.tradingday, self.logger)
             tasks = []
             for strat in self.strats:
                 bartime = getBarTime(self.info_time, strat.freq)
@@ -187,10 +187,10 @@ class qeAsyncStratProcess:
                 self.loop.run_until_complete(asyncio.wait(tasks))
                     
         except Exception as e:
-            logger.error(f'Error on strat.onBar {e}',exc_info=True)
+            self.logger.error(f'Error on strat.onBar {e}',exc_info=True)
         end = datetime.now()
         secs = (end-start).seconds
-        logger.info(f'callStratOnBar cost {secs} seconds')
+        self.logger.info(f'callStratOnBar cost {secs} seconds')
     
     def callStratCrossDay(self):
         #global loop
@@ -205,21 +205,23 @@ class qeAsyncStratProcess:
                 self.loop.run_until_complete(asyncio.wait(tasks))
                 
         except Exception as e:
-            logger.error(f'Error on strat.crossDay {e}',exc_info=True)
+            self.logger.error(f'Error on strat.crossDay {e}',exc_info=True)
         end = datetime.now()
         secs = (end-start).seconds
-        logger.info(f'callStratCrossDay cost {secs} seconds')
+        self.logger.info(f'callStratCrossDay cost {secs} seconds')
 
-    def stratProcess(self, strats):
+    def stratProcess(self, strats,logger):
         global info_time
+        self.logger = logger
         print(u"策略进程启动成功!")
-        logger.info(u"策略进程启动成功!")
-        logger.info("strat user "+str(self.user))
+        self.logger.info(u"策略进程启动成功!")
+        self.logger.info("strat user "+str(self.user))
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
         for strat in strats:
             strat.context = qeContextBase(strat.instid)
+            strat.context.logger = self.logger
             #g_userinfo = globalInfo()  
             #print(g_userinfo.info_time,'#')
             #print(1)
@@ -320,7 +322,7 @@ class qeAsyncStratProcess:
                                         strat.context.instid = strat.instid
 #                                         self.trigger = False
                             except Exception as e:
-                                logger.error(f'Error on strat.handleData {e}',exc_info=True)
+                                self.logger.error(f'Error on strat.handleData {e}',exc_info=True)
                         elif d['type'] == qetype.KEY_ON_ORDER:
                             #print('on_Order')
                             #print('3',d)
@@ -332,10 +334,10 @@ class qeAsyncStratProcess:
                             #print('stratprocess on order error')
                             self.handleOrder(d)
                         elif d['type'] == qetype.KEY_TIMER_PROCESS:
-                            #logger.info(f'strat minu report:{self.info_time_new},{self.info_time_all}')
+                            #self.logger.info(f'strat minu report:{self.info_time_new},{self.info_time_all}')
                             self.bCrossDay = self.checkCrossDay()
                             if self.bCrossDay:
-                                logger.info(f'strat.crossDay {strat.name}')
+                                self.logger.info(f'strat.crossDay {strat.name}')
                                #self.saveTradingday = False
                                 savedInsts = {}
                                 for strat in self.strats:
@@ -354,7 +356,7 @@ class qeAsyncStratProcess:
                                         strat.context.instid = strat.instid
                            
                     except Exception as e:
-                        logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
+                        self.logger.error(f"qestratprocess stratqueue error {e}",exc_info=True )  
                 time.sleep(0.001)
 
     def changeInstIDs(self, context, old, new):
@@ -389,12 +391,12 @@ class qeAsyncStratProcess:
         timer = Timer(self.Timer_interval,self.callTimer)
         d = {}
         d['type'] = qetype.KEY_TIMER_PROCESS
-#         logger.info('timer '+str(datetime.now()))
+#         self.logger.info('timer '+str(datetime.now()))
         
         if self.stratQueue:
             self.stratQueue.put(d)
         else:
-            logger.info('Timer is pending')
+            self.logger.info('Timer is pending')
         timer.start()
         return    
   
@@ -469,7 +471,7 @@ class qeAsyncStratProcess:
                                 saveHedgeMarketToDB(self.user,strat.name, strat.instid_hedge, strat.hedgemodel_time, d)
                                 strat.hedgemodel_time = strat.context.timedigit
         except Exception as e:
-            logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
+            self.logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
     
     
     def updateData(self,d):
@@ -480,7 +482,7 @@ class qeAsyncStratProcess:
                 
             if presett  > 0.01 and not tempinstid in self.presett:
                 self.presett.update({tempinstid:presett})
-                logger.info(f"New data on {tempinstid},presett:{self.presett[tempinstid]}")
+                self.logger.info(f"New data on {tempinstid},presett:{self.presett[tempinstid]}")
             self.dataslide.update({tempinstid:d['data']})
             
             
@@ -501,7 +503,7 @@ class qeAsyncStratProcess:
                         
                                         
         except Exception as e:
-            logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
+            self.logger.info(f"qestratprocess stratqueue error {e}",exc_info=True )  
 
     def calculatemul(self,context):
         a = [0, 0, 0, 0, 0]
@@ -527,7 +529,7 @@ class qeAsyncStratProcess:
         self.info_time_all = 0
         self.info_time_new = 0
         self.daily_called = False
-        logger.info('Strat Process crossDay')    
+        self.logger.info('Strat Process crossDay')    
         reset_buffer_data()
         if self.recmode:
             
@@ -562,7 +564,7 @@ class qeAsyncStratProcess:
                 
                 
         except Exception as e:
-            logger.error(f"handleorder error {e}",exc_info=True)  
+            self.logger.error(f"handleorder error {e}",exc_info=True)  
 
 
     def handleTrade(self,trade):
@@ -579,7 +581,7 @@ class qeAsyncStratProcess:
                         writeStratTrade_wrap(strat.name,context.tradingday, trade)
                         writeContract_messages_wrap(strat.name,context.tradingday, trade)
         except Exception as e:
-            logger.error(f"handletrade error {e}",exc_info=True )
+            self.logger.error(f"handletrade error {e}",exc_info=True )
     
     
 if __name__ == '__main__':

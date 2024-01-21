@@ -13,7 +13,7 @@ import pandas as pd
 buffer_bar_data = None
 buffer_dominant_insts = None
 from datetime import datetime, timedelta
-from .qelogger import logger
+#from .qelogger import logger
 
 @check_auth
 async def aio_get_bar(context, freq, count=None):
@@ -81,7 +81,7 @@ async def aio_get_bar(context, freq, count=None):
                         else:
                             data[instid]=df2.dropna(how='all')
         except Exception as e:
-            logger.error(f"qeasyncdata {e.__traceback__.tb_lineno},{e}",exc_info=True)
+            context.logger.error(f"qeasyncdata {e.__traceback__.tb_lineno},{e}",exc_info=True)
  
         #print(df2.head())
     return data
@@ -102,7 +102,7 @@ async def aio_get_dominant_instID(symbol, curdate=None, code='9999'):
 
 
 @check_auth
-def buffer_get_bar(instids,tradingday):
+def buffer_get_bar(instids,tradingday,logger):
     global buffer_bar_data
     try:
         dfDict =  qesdk.get_bar_data(instids, tradingday, 5)

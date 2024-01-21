@@ -505,7 +505,7 @@ class qeCtpTrader(object):
         self.accFinish = True
         if not self.accload:
             self.accload = True
-            self.account.saveToDB()
+            self.account.saveToDB(self.logger)
             print(f'ctp账户资金信息加载完毕 {self.account.balance}')
             self.logger.info(f'ctp账户资金信息加载完毕 {self.account.balance}')
             self.account.setLoadReady()
@@ -521,7 +521,7 @@ class qeCtpTrader(object):
         self.posFinish = True
         if not self.posload:
             self.posload = True
-            self.account.saveToDB()
+            self.account.saveToDB(self.logger)
             setPositionLoaded()
             print('ctp账户持仓信息加载完毕')
             self.logger.info('ctp账户持仓信息加载完毕')
