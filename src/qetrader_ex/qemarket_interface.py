@@ -147,9 +147,10 @@ def runMarketInterface(strats, runmode,  data_slides, instIDs, tqueue,mode_724=F
             ## send to strats and traders
             d = {}
             d['type'] = qetype.KEY_NEW_MARKET_DATA
-            d['data'] = data_slides.copy()
+            #d['data'] = data_slides.copy()
             
             g_dataSlide.updateEx(data_slides.copy())
+            d['data'] = g_dataSlide.copy()
             update_data(strats, d)
             if runmode == 'simu':
                 tqueue.put(d)
