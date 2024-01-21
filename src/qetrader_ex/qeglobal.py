@@ -39,7 +39,7 @@ class qeDataSlide(collections.UserDict):
         if not key in self.data:
             return {"current":0,"presett":0,"preclose":0}    
         return self.data[key]
-    def update(self, datalist):
+    def updatelist(self, datalist):
         for data in datalist:
             self.data[data['instid']] = data["data"]
     def updateEx(self, dataslides):
