@@ -466,7 +466,8 @@ class qeContextBase:
                 else:
                     ROrders = pd.DataFrame.from_dict(self.orders, orient='index')
                     ROrders.index = ROrders.index + daynum
-                    self.ROrders = self.ROrders.append(ROrders)
+                    #self.ROrders = self.ROrders.append(ROrders)
+                    self.ROrders = pd.concat([self.ROrders, ROrders],ignore_index=True)
             
             self.orders = {}
             # self.trades = {}
@@ -1964,8 +1965,8 @@ def runBacktest(user, df,datamode, instids, strat, record_strat=False,exdata=Non
             else:
                 ROrders = pd.DataFrame.from_dict(context.orders, orient='index')
                 ROrders.index = ROrders.index + daynum
-                context.ROrders = context.ROrders.append(ROrders)
-
+                #context.ROrders = context.ROrders.append(ROrders)
+                context.ROrders = pd.concat([context.ROrders, ROrders], ignore_index=True)
         if context.ROrders is None:    
             context.ROrders = pd.DataFrame()
         #if len(context.Cancels) > 0:
@@ -2512,7 +2513,7 @@ def dynamicBacktest(user, datamode, instids, start_date, end_date, strat, printl
                                 else:
                                     datarep[inst] = drep
                         context.trades = {}
-                        RTrades = RTrades.append(Trades) 
+                        RTrades = pd.concat([RTrades,Trades],ignore_index=True) 
 
         
         if len(context.trades) > 0:
@@ -2531,7 +2532,8 @@ def dynamicBacktest(user, datamode, instids, start_date, end_date, strat, printl
                     record_instid.append(inst)
                     saveBackTestDataDynamic(user, inst, drep)
                     #del drep[inst]
-            RTrades = RTrades.append(Trades)         
+            #RTrades = RTrades.append(Trades) 
+            RTrades = pd.concat([RTrades,Trades],ignore_index=True)         
         for inst in datarep:
             #print('SAVE left to DB', inst,len(datarep[inst]))
             record_instid.append(inst)
@@ -2569,7 +2571,8 @@ def dynamicBacktest(user, datamode, instids, start_date, end_date, strat, printl
             else:
                 ROrders = pd.DataFrame.from_dict(context.orders, orient='index')
                 ROrders.index = ROrders.index + daynum
-                context.ROrders = context.ROrders.append(ROrders)
+                #context.ROrders = context.ROrders.append(ROrders)
+                context.ROrders = pd.concat([context.ROrders,ROrders],ignore_index=True)
 
         
         
