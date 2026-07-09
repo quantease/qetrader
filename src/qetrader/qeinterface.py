@@ -348,12 +348,12 @@ def real_make_order(context, instid, direction, price, volume, ordertype="limit"
             tvol = context.getAccountPosition(instid, dirstr, 'volume')
             ## Calculate volume on road
             volOnRoad = 0
-            for orderid in context.account.orders:
-                if context.account.orders[orderid]['instid'] == instid and \
-                    context.account.orders[orderid]['direction'] == direction and \
-                    context.account.orders[orderid]['action'] == 'close' and \
-                    context.account.orders[orderid]['closetype'] == 'closeyesterday':
-                    volOnRoad += context.account.orders[orderid]['leftvol']    
+            # for orderid in context.account.orders:
+            #     if context.account.orders[orderid]['instid'] == instid and \
+            #         context.account.orders[orderid]['direction'] == direction and \
+            #         context.account.orders[orderid]['action'] == 'close' and \
+            #         context.account.orders[orderid]['closetype'] == 'closeyesterday':
+            #         volOnRoad += context.account.orders[orderid]['leftvol']    
             yesvol -= volOnRoad
             tvol -= volOnRoad
 

@@ -1,1 +1,12 @@
-recursive-include src/qetrader *.js *.css *.html *.json *.so *.dll
+recursive-include src/qetrader/static *.js *.css
+recursive-include src/qetrader/templates *.html
+include src/qetrader/sysconfig.json
+exclude PYPI_REMEDIATION.md
+
+prune src/qetrader/linux
+prune src/qetrader/win
+prune src/qetrader/plugins
+
+global-exclude *.dll *.pyd *.so
+global-exclude *.py[cod]
+global-exclude __pycache__/*

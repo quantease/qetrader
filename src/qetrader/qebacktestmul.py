@@ -2712,7 +2712,7 @@ def reportIndicators(report, riskfree, benchmark=None):
     indicators['highwater'] = stat.highwater[-1]/stat.balance[0]
     indicators['maxdrawback'] = min(stat.drawback)/stat.balance[0]
     indicators['avol'] = np.std(stat.dayret) * np.sqrt(365)
-    indicators['winrate'] = sum(stat.wincount) / (sum(stat.wincount) + sum(stat.losscount))
+    indicators['winrate'] = sum(stat.wincount) / (sum(stat.wincount) + sum(stat.losscount)) if sum(stat.wincount) + sum(stat.losscount) != 0 else 1
     indicators['odds'] = np.mean(stat.winamount) / abs(np.mean(stat.lossamount))  if np.mean(stat.lossamount) != 0 else 1
     downside = [-ret for ret in stat.dayret if ret < riskfree]
     indicators['downrisk'] = np.std(downside) 

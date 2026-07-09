@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qetrader"
-version = "1.0.37"
+version = "1.1.0"
 authors = [
   { name="Scott Zhang", email="scott2011@qq.com" },
 ]
@@ -38,3 +38,26 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/quantease/qetrader"
 "Bug Tracker" = "https://github.com/quantease/qetrader/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+qetrader = [
+  "static/*.js",
+  "static/*.css",
+  "templates/*.html",
+  "sysconfig.json",
+]
+
+[tool.setuptools.exclude-package-data]
+qetrader = [
+  "*.dll",
+  "*.pyd",
+  "*.so",
+  "**/*.dll",
+  "**/*.pyd",
+  "**/*.so",
+  "**/*.pyc",
+  "**/__pycache__/*",
+]

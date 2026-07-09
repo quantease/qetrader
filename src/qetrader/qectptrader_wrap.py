@@ -256,7 +256,7 @@ class qeCtpTrader(object):
     def callback(self,d):
         #global tstrats
         #print('callback',d)
-        if 'stratName' in d and d['stratName'].replace(' ','') != '' and d['stratName'] != 'algoex':
+        if 'stratName' in d and d['stratName'].replace(' ','') != '':
             #print('callback',d['stratName'],self.strats)
             if self.strats:
                 stratQueue = self.strats.get(d['stratName'],None)
